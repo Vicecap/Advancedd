@@ -1,0 +1,171 @@
+import sympy as sp
+import matplotlib.pyplot as plt
+import re
+
+# If only numbers and operators, calculate numerically
+if re.match(r'^[\d\s\+\-\*\/\.\(\)]+$', clean):
+    result = eval(clean)
+    print("\nFinal Answer:")
+    print(result)
+    exit()
+
+import sys
+
+question = sys.argv[1].lower()          # The expression
+topic = sys.argv[2].lower() if len(sys.argv) > 2 else ""  # Optional topic from dashboard
+
+# Detect action based on topic first, fallback to keyword search
+if topic:
+    action = topic
+elif "factor" in question:
+    action = "factor"
+elif "expand" in question:
+    action = "expand"
+...
+else:
+    action = "simplify"
+
+
+from sympy.parsing.sympy_parser import (
+    parse_expr,
+    standard_transformations,
+    implicit_multiplication_application,
+    convert_xor
+)
+
+sp.init_printing()
+
+transformations = standard_transformations + (
+    implicit_multiplication_application,
+    convert_xor,
+)
+
+x, y = sp.symbols('x y')
+
+question = input("Enter question: ").lower()
+
+# Detect action
+if "factor" in question:
+    action = "factor"
+
+elif "expand" in question:
+    action = "expand"
+
+elif "solve system" in question:
+    action = "system"
+
+elif "solve" in question:
+    action = "solve"
+
+elif "derivative" in question or "differentiate" in question:
+    action = "diff"
+
+elif "integrate" in question:
+    action = "integrate"
+
+elif "limit" in question:
+    action = "limit"
+
+elif "divide" in question:
+    action = "divide"
+
+elif "matrix" in question:
+    action = "matrix"
+
+elif "plot" in question:
+    action = "plot"
+
+else:
+    action = "simplify"
+
+clean = question \
+.replace("factor","") \
+.replace("expand","") \
+.replace("solve","") \
+.replace("differentiate","") \
+.replace("derivative","") \
+.replace("integrate","") \
+.replace("limit","") \
+.replace("divide","") \
+.replace("plot","")
+
+expr = parse_expr(clean, transformations=transformations)
+
+print("\nStep 1: Original Expression")
+sp.pprint(expr)
+
+if action == "factor":
+
+    print("\nStep 2: Factoring")
+    result = sp.factor(expr)
+
+elif action == "expand":
+
+    print("\nStep 2: Expanding")
+    result = sp.expand(expr)
+
+elif action == "solve":
+
+    print("\nStep 2: Solving equation")
+    result = sp.solve(expr, x)
+
+elif action == "diff":
+
+    print("\nStep 2: Differentiating")
+    result = sp.diff(expr, x)
+
+elif action == "integrate":
+
+    print("\nStep 2: Integrating")
+    result = sp.integrate(expr, x)
+
+elif action == "limit":
+
+    print("\nStep 2: Evaluating limit")
+    result = sp.limit(expr, x, 0)
+
+elif action == "divide":
+
+    print("\nStep 2: Polynomial division")
+    divisor = x + 1
+    q, r = sp.div(expr, divisor)
+    print("Quotient:")
+    sp.pprint(q)
+    print("Remainder:")
+    sp.pprint(r)
+    exit()
+
+elif action == "matrix":
+
+    M = sp.Matrix([[1,2],[3,4]])
+    print("\nMatrix:")
+    sp.pprint(M)
+
+    print("\nDeterminant:")
+    sp.pprint(M.det())
+
+    print("\nInverse:")
+    sp.pprint(M.inv())
+
+    exit()
+
+elif action == "plot":
+
+    f = sp.lambdify(x, expr)
+
+    xs = [i/10 for i in range(-100,100)]
+    ys = [f(i) for i in xs]
+
+    plt.plot(xs,ys)
+    plt.grid()
+    plt.show()
+
+    exit()
+
+else:
+
+    print("\nStep 2: Simplifying")
+    result = sp.simplify(expr)
+
+print("\nFinal Answer:")
+sp.pprint(result)

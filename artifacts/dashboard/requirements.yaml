@@ -1,0 +1,17 @@
+packages:
+  "framer-motion": "Smooth tab transitions and element animations"
+  "mathjs": "Safe mathematical expression evaluation for calculator and graphs"
+  "recharts": "Beautiful React charting library for the graph tab"
+  "react-dropzone": "Drag and drop file upload handling for the OCR tab"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility function to efficiently merge Tailwind CSS classes"
+
+images:
+  - path: "artifacts/dashboard/public/images/hero-math-bg.png"
+    description: "Deep dark navy blue abstract geometric background with subtle glowing mathematical symbols, floating 3D shapes, high end tech aesthetic, modern, minimalist"
+    aspect_ratio: "16:9"
+
+notes:
+  - Using recharts instead of Plotly for better React/Vite compatibility and bundle size
+  - The API endpoints are assumed to be /api/ais, /api/solve-stream, /api/discuss, /api/upload-image
+  - Using open source trivia API for quiz tab as specified

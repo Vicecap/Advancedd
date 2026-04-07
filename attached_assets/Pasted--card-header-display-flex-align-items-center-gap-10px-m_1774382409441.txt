@@ -1,0 +1,1494 @@
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+.card-icon.blue  { background: rgba(59,130,246,0.15); }
+.card-icon.green { background: rgba(34,197,94,0.15); }
+.card-icon.purple{ background: rgba(167,139,250,0.15); }
+.card-icon.yellow{ background: rgba(245,158,11,0.15); }
+
+.card-title-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.card-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ═══════════════════════ GRID ═══════════════════════ */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* ═══════════════════════ FORM ELEMENTS ═══════════════════════ */
+label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+input[type="text"],
+input[type="file"],
+textarea,
+select {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 14.5px;
+  margin-bottom: 14px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+}
+input[type="text"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+input[type="file"] {
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+textarea { resize: vertical; min-height: 88px; line-height: 1.6; }
+select option { background: var(--bg-card); color: var(--text-primary); }
+
+#answer {
+  background: var(--bg-input);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--accent-hover);
+  min-height: 52px;
+  width: 100%;
+  margin-bottom: 14px;
+  letter-spacing: 0.01em;
+}
+
+/* ═══════════════════════ OUTPUT AREAS ═══════════════════════ */
+#output,
+#aiDiscussionOutput,
+#ocrOutput {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  min-height: 120px;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: var(--text-secondary);
+  max-height: 420px;
+  font-family: 'Inter', sans-serif;
+}
+
+#ocrOutput mark {
+  background: rgba(59,130,246,0.22);
+  color: var(--text-primary);
+  border-radius: 3px;
+  padding: 0 3px;
+}
+
+/* ═══════════════════════ BUTTONS ═══════════════════════ */
+button {
+  padding: 9px 18px;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: background var(--transition), transform 0.1s, box-shadow var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 4px 3px 0;
+  letter-spacing: 0.01em;
+}
+button:active { transform: scale(0.97); }
+
+.btn-primary,
+button[onclick="solve()"],
+button[onclick="sendDiscussion()"] {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(59,130,246,0.35);
+}
+.btn-primary:hover,
+button[onclick="solve()"]:hover,
+button[onclick="sendDiscussion()"]:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 18px rgba(59,130,246,0.45);
+}
+
+.btn-secondary,
+button[onclick="extractOCR()"],
+button[onclick="sendOCRToAI()"],
+button[onclick="sendSolutionToAI()"],
+button[onclick="solveGraph()"] {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-bright);
+}
+.btn-secondary:hover,
+button[onclick="extractOCR()"]:hover,
+button[onclick="sendOCRToAI()"]:hover,
+button[onclick="sendSolutionToAI()"]:hover,
+button[onclick="solveGraph()"]:hover {
+  background: var(--border-bright);
+  color: var(--text-primary);
+}
+
+/* ═══════════════════════ BUTTON GROUP ═══════════════════════ */
+.btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.btn-group button { margin: 0; }
+
+/* ═══════════════════════ CALCULATOR ═══════════════════════ */
+.calculator {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+}
+.calculator button {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 11px 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  margin: 0;
+  transition: var(--transition);
+}
+.calculator button:hover {
+  background: var(--border-bright);
+  color: var(--text-primary);
+  border-color: var(--border-bright);
+}
+@media (max-width: 600px) { .calculator { grid-template-columns: repeat(4, 1fr); } }
+
+#calculatorModeBtn {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #fff;
+  border: none;
+  box-shadow: 0 2px 12px rgba(59,130,246,0.3);
+  margin-top: 10px;
+}
+#calculatorModeBtn:hover {
+  opacity: 0.9;
+  box-shadow: 0 4px 18px rgba(59,130,246,0.4);
+}
+
+/* ═══════════════════════ DROP ZONE ═══════════════════════ */
+.drop-zone {
+  border: 2px dashed var(--border-bright);
+  border-radius: var(--radius-lg);
+  padding: 36px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-bottom: 14px;
+  cursor: pointer;
+  transition: var(--transition);
+  background: var(--bg-surface);
+}
+.drop-zone .dz-icon { font-size: 32px; margin-bottom: 10px; opacity: 0.6; }
+.drop-zone p { font-size: 13.5px; }
+.drop-zone:hover {
+  border-color: var(--accent);
+  background: var(--accent-glow);
+  color: var(--text-secondary);
+}
+
+/* ═══════════════════════ IMAGE PREVIEW ═══════════════════════ */
+#imagePreview {
+  max-width: 260px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-bright);
+  margin: 10px 0 14px;
+  display: block;
+}
+
+/* ═══════════════════════ GRAPH WRAPPER ═══════════════════════ */
+#graphInputWrapper {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  margin-top: 18px;
+}
+#graphCanvas {
+  width: 100%;
+  height: 380px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+/* ═══════════════════════ BADGE ═══════════════════════ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.badge-green { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+.badge-blue  { background: rgba(59,130,246,0.12); color: #93c5fd; border: 1px solid rgba(59,130,246,0.25); }
+.badge-red   { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+
+/* ═══════════════════════ QUIZ SECTION ═══════════════════════ */
+.quiz-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.quiz-controls select { margin-bottom: 0; }
+
+#quizQuestion {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.6;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 14px 0 10px;
+}
+
+#quizChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+#quizChoices button {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  padding: 9px 18px;
+  font-size: 13.5px;
+  margin: 0;
+  transition: var(--transition);
+}
+#quizChoices button:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+#quizBanner {
+  margin-top: 14px;
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  font-weight: 600;
+  font-size: 15px;
+  text-align: center;
+  display: none;
+}
+
+/* ═══════════════════════ GUIDE ═══════════════════════ */
+.guide-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 14px;
+  font-family: 'Inter', sans-serif;
+  transition: var(--transition);
+}
+.guide-toggle:hover { background: var(--border-bright); color: var(--text-primary); }
+
+.guide-content {
+  display: none;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+.guide-content h4 {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  margin: 16px 0 6px;
+  font-family: 'Outfit', sans-serif;
+}
+.guide-content h4:first-child { margin-top: 0; }
+.guide-content ul { padding-left: 20px; }
+.guide-content li { margin-bottom: 4px; }
+.guide-content code {
+  background: var(--bg-elevated);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12.5px;
+  color: #93c5fd;
+}
+
+/* ═══════════════════════ DIVIDER ═══════════════════════ */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+
+/* ═══════════════════════ LOADING DOTS ═══════════════════════ */
+.loading-dots::after {
+  content: '';
+  animation: dots 1.2s steps(4, end) infinite;
+}
+@keyframes dots {
+  0%   { content: ''; }
+  25%  { content: '.'; }
+  50%  { content: '..'; }
+  75%  { content: '...'; }
+  100% { content: ''; }
+}
+
+/* ═══════════════════════ SCROLLBAR ═══════════════════════ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a4d63; }
+
+/* ═══════════════════════ LIGHT MODE ═══════════════════════ */
+.light-mode {
+  --bg-base:      #f0f4f8;
+  --bg-surface:   #ffffff;
+  --bg-card:      #ffffff;
+  --bg-elevated:  #e8edf4;
+  --bg-input:     #f8fafc;
+  --border:       #d1dbe8;
+  --border-bright:#b8c8dc;
+  --text-primary: #0f172a;
+  --text-secondary:#4a6080;
+  --text-muted:   #8fa0b8;
+  --accent-glow:  rgba(59,130,246,0.12);
+}
+.light-mode body::before {
+  background-image:
+    linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+}
+.light-mode .topnav {
+  background: rgba(240,244,248,0.9);
+  border-color: var(--border);
+}
+.light-mode .tab-btn { color: var(--text-secondary); }
+.light-mode .tab-btn:hover { background: var(--bg-elevated); }
+.light-mode select option { background: #fff; color: #0f172a; }
+.light-mode #ocrOutput mark { background: rgba(59,130,246,0.15); color: #0f172a; }
+.light-mode .calculator button { background: var(--bg-elevated); color: var(--text-secondary); border-color: var(--border); }
+.light-mode .calculator button:hover { background: var(--border-bright); }
+.light-mode .guide-content code { background: var(--bg-elevated); color: #1d4ed8; }
+
+/* ═══════════════════════ UTILITIES ═══════════════════════ */
+.mt-2 { margin-top: 8px; }
+.mt-4 { margin-top: 16px; }
+.mb-2 { margin-bottom: 8px; }
+.text-sm { font-size: 13px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ── TOP NAV ── -->
+  <nav class="topnav">
+    <div class="topnav-brand">
+      <div class="brand-icon">🧮</div>
+      <span class="brand-name">AI Solver Dashboard</span>
+    </div>
+    <div class="topnav-actions">
+      <button id="themeToggle">☀ Light Mode</button>
+    </div>
+  </nav>
+
+  <!-- ── MAIN CONTENT ── -->
+  <div class="main-content">
+
+    <!-- Hero -->
+    <div class="page-hero">
+      <h1>AI-Powered Problem Solver</h1>
+      <p>Solve equations, extract text from images, plot graphs, and quiz yourself — all in one place.</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav" role="tablist">
+      <button class="tab-btn active" onclick="switchTab('solver', this)" role="tab">🧠 Solver</button>
+      <button class="tab-btn" onclick="switchTab('image', this)" role="tab">📷 Image OCR</button>
+      <button class="tab-btn" onclick="switchTab('graph', this)" role="tab">📈 Graph</button>
+      <button class="tab-btn" onclick="switchTab('calculator', this)" role="tab">🔢 Calculator</button>
+      <button class="tab-btn" onclick="switchTab('discussion', this)" role="tab">💬 AI Chat</button>
+      <button class="tab-btn" onclick="switchTab('quiz', this)" role="tab">🎓 Quiz</button>
+      <button class="tab-btn" onclick="switchTab('guide', this)" role="tab">📖 Guide</button>
+    </div>
+
+    <!-- ══════════ TAB: SOLVER ══════════ -->
+    <div id="tab-solver" class="tab-panel active">
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon blue">🧠</div>
+          <div>
+            <div class="card-title-text">AI Problem Solver</div>
+            <div class="card-subtitle">Choose a model, topic, and enter your question</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label for="aiSelect">AI Model</label>
+            <select id="aiSelect"></select>
+          </div>
+          <div>
+            <label for="topicSelect">Topic</label>
+            <select id="topicSelect">
+              <option value="solve">Solve Equation</option>
+              <option value="factor">Factor</option>
+              <option value="expand">Expand</option>
+              <option value="diff">Derivative</option>
+              <option value="integrate">Integrate</option>
+              <option value="limit">Limit</option>
+              <option value="divide">Divide Polynomial</option>
+              <option value="matrix">Matrix Operations</option>
+              <option value="plot">Plot</option>
+              <option value="simplify">Simplify</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="question">Your Question</label>
+        <textarea id="question" placeholder="Type your question here, e.g. solve 2x + 3 = 7"></textarea>
+
+        <div class="btn-group">
+          <button onclick="solve()">▶ Solve</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon green">✅</div>
+          <div>
+            <div class="card-title-text">Answer</div>
+          </div>
+        </div>
+        <label>Answer Only</label>
+        <input type="text" id="answer" readonly placeholder="Answer will appear here…">
+        <label>Step-by-Step Solution</label>
+        <div id="output"></div>
+      </div>
+
+      <!-- Graph input (hidden until plot topic) -->
+      <div id="graphInputWrapper" style="display:none;">
+        <div class="card-header" style="margin-bottom:14px;">
+          <div class="card-icon blue">📈</div>
+          <div class="card-title-text">Graph / Chart</div>
+        </div>
+        <p class="text-sm mb-2">Enter a function (e.g. <code style="background:var(--bg-elevated);padding:1px 5px;border-radius:4px;color:#93c5fd;">y = x^2 + 2x</code>) or comma-separated numbers.</p>
+        <textarea id="graphQuestion" placeholder="Type your function or data here" style="height:60px;"></textarea>
+        <label for="graphTypeSelect">Plot Type</label>
+        <select id="graphTypeSelect">
+          <option value="line">Line</option>
+          <option value="bar">Bar</option>
+          <option value="scatter">Scatter</option>
+        </select>
+        <div class="btn-group">
+          <button onclick="solveGraph()">📊 Draw Graph</button>
+        </div>
+        <div id="graphOutputWrapper" style="margin-top:10px;">
+          <div id="graphCanvas"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ══════════ TAB: IMAGE OCR ══════════ -->
+    <div id="tab-image" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon purple">📷</div>
+          <div>
+            <div class="card-title-text">Image Text Extraction (OCR)</div>
+            <div class="card-subtitle">Upload a question image and extract its text</div>
+          </div>
+        </div>
+
+        <div class="drop-zone" onclick="document.getElementById('questionImage').click()">
+          <div class="dz-icon">🖼️</div>
+          <p>Click to upload or drag an image here</p>
+          <p class="text-sm mt-2">Supports PNG, JPG, JPEG, WEBP</p>
+        </div>
+        <input type="file" id="questionImage" accept="image/*" style="display:none;">
+        <img id="imagePreview" src="" alt="Preview" style="display:none;">
+
+        <div class="btn-group">
+          <button onclick="extractOCR()">🔍 Extract Text</button>
+          <button onclick="sendOCRToAI()">➡ Send to AI Solver</button>
+        </div>
+
+        <label style="margin-top:16px;">OCR Output</label>
+        <div id="ocrOutput"></div>
+      </div>
+    </div>
+
+    <!-- ══════════ TAB: GRAPH ══════════ -->
+    <div id="tab-graph" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon blue">📈</div>
+          <div>
+            <div class="card-title-text">Graph Plotter</div>
+            <div class="card-subtitle">Plot any function or dataset visually</div>
+          </div>
+        </div>
+
+        <label for="graphQuestion2">Function or Data</label>
+        <textarea id="graphQuestion2" placeholder="e.g. x^2 + 2*x  or  1,4,9,16,25" style="height:70px;"></textarea>
+
+        <label for="graphTypeSelect2">Plot Type</label>
+        <select id="graphTypeSelect2">
+          <option value="line">Line</option>
+          <option value="bar">Bar</option>
+          <option value="scatter">Scatter</option>
+        </select>
+
+        <div class="btn-group">
+          <button onclick="solveGraphTab()">📊 Draw Graph</button>
+        </div>
+
+        <div id="graphCanvasTab" style="width:100%; height:400px; border-radius:var(--radius); margin-top:16px; overflow:hidden;"></div>
+      </div>
+    </div>
+
+    <!-- ══════════ TAB: CALCULATOR ══════════ -->
+    <div id="tab-calculator" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon yellow">🔢</div>
+          <div>
+            <div class="card-title-text">Advanced Calculator</div>
+            <div class="card-subtitle">Scientific calculator with live evaluation</div>
+          </div>
+        </div>
+
+        <label for="calcInput">Expression</label>
+        <input type="text" id="calcInput" placeholder="e.g. 3 * (4 + 5)^2">
+
+        <label for="calcResult">Result</label>
+        <input type="text" id="calcResult" readonly placeholder="Result…">
+
+        <div class="calculator" id="calcButtons"></div>
+
+        <button id="calculatorModeBtn" style="margin-top:12px;">🔀 Use Calculator Only</button>
+      </div>
+    </div>
+
+    <!-- ══════════ TAB: DISCUSSION ══════════ -->
+    <div id="tab-discussion" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon purple">💬</div>
+          <div>
+            <div class="card-title-text">Ask AI Further</div>
+            <div class="card-subtitle">Follow up, clarify, or extend the solution</div>
+          </div>
+        </div>
+
+        <label for="aiDiscussionInput">Your Question</label>
+        <textarea id="aiDiscussionInput" placeholder="Ask follow-up questions…" style="min-height:100px;"></textarea>
+
+        <div class="btn-group">
+          <button onclick="sendDiscussion()">✉ Send</button>
+          <button onclick="sendSolutionToAI()"> 📋 Load Previous Solution</button>
+        </div>
+
+        <label style="margin-top:16px;">AI Response</label>
+        <div id="aiDiscussionOutput"></div>
+      </div>
+    </div>
+
+    <!-- ══════════ TAB: QUIZ ══════════ -->
+    <div id="tab-quiz" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon green">🎓</div>
+          <div>
+            <div class="card-title-text">English / Quiz Section</div>
+            <div class="card-subtitle">Test your knowledge with trivia questions</div>
+          </div>
+        </div>
+
+        <div class="quiz-controls">
+          <div>
+            <label for="quizCategory">Category</label>
+            <select id="quizCategory"><option value="">All Categories</option></select>
+          </div>
+          <div>
+            <label for="quizDifficulty">Difficulty</label>
+            <select id="quizDifficulty">
+              <option value="">Any</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+            </select>
+          </div>
+          <div>
+            <label for="quizType">Type</label>
+            <select id="quizType">
+              <option value="">Any</option>
+              <option value="multiple">Multiple Choice</option>
+              <option value="boolean">True / False</option>
+            </select>
+          </div>
+          <div>
+            <label for="quizEncoding">Encoding</label>
+            <select id="quizEncoding">
+              <option value="">Default</option>
+              <option value="url3986">URL 3986</option>
+              <option value="base64">Base64</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button onclick="loadQuiz()" class="btn-primary">🎲 Load Question</button>
+        </div>
+
+        <div id="quizQuestion"></div>
+        <div id="quizChoices"></div>
+        <div id="quizBanner"></div>
+      </div>
+    </div>
+
+    <!-- ══════════ TAB: GUIDE ══════════ -->
+    <div id="tab-guide" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon blue">📖</div>
+          <div>
+            <div class="card-title-text">How to Use This AI Solver</div>
+            <div class="card-subtitle">Tips and guidance for getting the best results</div>
+          </div>
+        </div>
+
+        <div class="guide-content" style="display:block;">
+          <h4>1. Typing Your Question</h4>
+          <p>Enter your question in the question field on the <strong>Solver</strong> tab. Examples:</p>
+          <ul>
+            <li>Arithmetic: <code>50 × 50</code> → Answer: <code>2500</code></li>
+            <li>Algebra: <code>20x + 15</code></li>
+            <li>Factoring: <code>factor 2x^2 + 4x</code> → <code>2x(x + 2)</code></li>
+            <li>Solving: <code>solve 2x + 3 = 7</code> → <code>x = 2</code></li>
+          </ul>
+
+          <h4>2. Operators</h4>
+          <p>Use <code>+</code>, <code>-</code>, <code>*</code> (or ×), <code>/</code>, and <code>^</code> for powers.</p>
+
+          <h4>3. Choosing the Topic</h4>
+          <p>Select the topic from the dropdown to guide the AI:</p>
+          <ul>
+            <li>Solve Equation, Factor, Expand</li>
+            <li>Derivative, Integrate, Limit</li>
+            <li>Divide Polynomial, Matrix Operations, Plot, Simplify</li>
+          </ul>
+
+          <h4>4. How the AI Explains Solutions</h4>
+          <p>The AI analyzes your input, identifies the problem type, and explains how Python libraries like <strong>SymPy</strong>, <strong>NumPy</strong>, and <strong>Plotly</strong> would solve it step-by-step.</p>
+
+          <h4>5. Recommended AI Models</h4>
+          <ul>
+            <li><strong>Qwen Latest</strong>: Advanced reasoning, handles multi-step problems effectively.</li>
+            <li><strong>Qwen 2.5</strong>: Lightweight but fast, ideal for simpler calculations.</li>
+          </ul>
+
+          <h4>6. Image Input (OCR Tab)</h4>
+          <p>Upload an image of your question, click <strong>Extract Text</strong>, then the text is auto-filled into the solver.</p>
+
+          <h4>7. Reading the Answer</h4>
+          <p><strong>Answer Only</strong>: shows the final simplified result.<br>
+          <strong>Solution</strong>: shows the step-by-step explanation.</p>
+
+          <h4>8. Advanced Tips</h4>
+          <ul>
+            <li>Use letters like <code>x</code>, <code>y</code> for variables.</li>
+            <li>Multiple steps and factors are handled automatically.</li>
+            <li>For plotting functions, select <strong>Plot</strong> topic or use the <strong>Graph</strong> tab.</li>
+            <li>Always check the step-by-step solution to understand the AI's reasoning.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+<script>
+/* ═══════════════════════ TAB SWITCHING ═══════════════════════ */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ═══════════════════════ LOAD AI MODELS ═══════════════════════ */
+async function loadAIs() {
+    try {
+        const res = await fetch('/ais');
+        const data = await res.json();
+        const select = document.getElementById('aiSelect');
+        data.models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.innerText = m;
+            select.appendChild(opt);
+        });
+    } catch (e) {
+        console.warn('Could not load AI models:', e);
+    }
+}
+
+/* ═══════════════════════ AUTO-EXPAND TEXTAREAS ═══════════════════════ */
+function autoExpandTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+}
+document.querySelectorAll('textarea').forEach(t => {
+    autoExpandTextarea(t);
+    t.addEventListener('input', () => autoExpandTextarea(t));
+});
+
+/* ═══════════════════════ SOLVE ═══════════════════════ */
+function solve() {
+    let question = document.getElementById('question').value;
+    question = question.replace(/(\d)\s*x\s*(\d)/gi, '$1*$2');
+    document.getElementById('question').value = question;
+
+    const ai = document.getElementById('aiSelect').value;
+    const topic = document.getElementById('topicSelect').value;
+    const output = document.getElementById('output');
+    const answerField = document.getElementById('answer');
+    const graphWrapper = document.getElementById('graphInputWrapper');
+
+    output.innerHTML = '';
+    answerField.value = '';
+    if (graphWrapper) graphWrapper.style.display = 'none';
+
+    startLoadingDots(output);
+
+    if (typeof chartInstance !== "undefined" && chartInstance) chartInstance.destroy();
+    if (document.getElementById('graphCanvas')) Plotly.purge('graphCanvas');
+
+    const evtSource = new EventSource(`/solve-stream?question=${encodeURIComponent(question)}&ai=${ai}&topic=${topic}`);
+    let finalAnswerSet = false;
+
+    evtSource.onmessage = e => {
+        const data = JSON.parse(e.data);
+        stopLoadingDots();
+
+        if (!finalAnswerSet && (data.answer || data.solution)) {
+            let ansText = data.answer || data.solution;
+            ansText = ansText.replace(/Step\s*\d+:|Final Answer:|Solution:/gi, '').trim();
+            answerField.value = ansText;
+            finalAnswerSet = true;
+        }
+
+        if (data.paragraph) output.innerHTML += data.paragraph + '\n\n';
+
+        if (topic === 'plot' && graphWrapper) {
+            graphWrapper.style.display = 'block';
+            try { plotFunction(question); } catch (err) { console.error(err); }
+        }
+
+        if (data.answer) {
+            try {
+                const nums = JSON.parse(data.answer);
+                if (Array.isArray(nums) && graphWrapper) {
+                    graphWrapper.style.display = 'block';
+                    renderChart(nums);
+                }
+            } catch {}
+        }
+
+        if (data.done) evtSource.close();
+    };
+}
+
+/* ═══════════════════════ CALCULATOR ═══════════════════════ */
+let calculatorMode = false;
+
+const calculatorModeBtn = document.getElementById('calculatorModeBtn');
+const calcInput = document.getElementById('calcInput');
+const calcResult = document.getElementById('calcResult');
+
+calculatorModeBtn.addEventListener('click', () => {
+    calculatorMode = !calculatorMode;
+    if (calculatorMode) {
+        calculatorModeBtn.innerText = '✅ Calculator Only Mode';
+        alert('Calculator-only mode ON. Type in the calc field to see results instantly.');
+        calcInput.focus();
+    } else {
+        calculatorModeBtn.innerText = '🔀 Use Calculator Only';
+        alert('Calculator-only mode OFF. Calculator appends to main question field again.');
+        calcResult.value = '';
+    }
+});
+
+calcInput.addEventListener('input', () => {
+    if (!calculatorMode) return;
+    try {
+        let expression = calcInput.value.replace(/\^/g, '**');
+        let result = eval(expression);
+        calcResult.value = result !== undefined ? result : '';
+    } catch { calcResult.value = 'Error'; }
+});
+
+const keys = [
+  '7','8','9','/','sin','cos','tan','^',
+  '4','5','6','*','log','ln','sqrt','%',
+  '1','2','3','-','(',')','=','C',
+  '0','.','+','A','B','C','D','E'
+];
+
+const calcContainer = document.getElementById('calcButtons');
+keys.forEach(k => {
+    const btn = document.createElement('button');
+    btn.innerText = k;
+    btn.onclick = () => {
+        const questionEl = document.getElementById('question');
+        const target = calculatorMode ? calcInput : questionEl;
+        if (k === 'C') {
+            target.value = '';
+        } else if (k === '=') {
+            try { target.value = eval(target.value); }
+            catch { target.value = 'Error'; }
+        } else {
+            target.value += k;
+        }
+    };
+    calcContainer.appendChild(btn);
+});
+
+/* ═══════════════════════ DISCUSSION ═══════════════════════ */
+async function sendDiscussion() {
+    const question = document.getElementById('aiDiscussionInput').value.trim();
+    const ai = document.getElementById('aiSelect').value;
+    const output = document.getElementById('aiDiscussionOutput');
+
+    if (!question) return;
+    output.innerHTML = 'Waiting for AI response…';
+
+    const res = await fetch('/discuss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: question, ai })
+    });
+    const data = await res.json();
+    output.innerHTML = data.response || 'No response';
+}
+
+function sendSolutionToAI() {
+    const solutionText = document.getElementById('output').innerText;
+    const discussionInput = document.getElementById('aiDiscussionInput');
+    discussionInput.value = `Here is the previous solution:\n${solutionText}\n\nPlease continue explanation or clarify further:`;                   autoExpandTextarea(discussionInput);
+    // Switch to discussion tab
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));             document.getElementById('tab-discussion').classList.add('active');
+    document.querySelectorAll('.tab-btn')[4].classList.add('active');
+}
+
+/* ═════════════���═════════ PLOT FUNCTIONS ═══════════════════════ */
+function plotFunction(expr) {
+    const x = [], y = [];
+    const safeExpr = expr.replace(/\*\*/g, '^');
+    for (let i = -10; i <= 10; i += 0.1) {              x.push(i);
+        try {
+            let val = safeExpr.replace(/\^/g, '**').replace(/x/g, `(${i})`);
+            y.push(eval(val));
+        } catch { y.push(null); }
+    }
+    const trace = { x, y, type: 'scatter', mode: 'lines', line: { color: '#3b82f6', width: 2.5 } };                                                 const layout = {
+        margin: { t: 10, b: 40, l: 40, r: 10 },         paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#8fa0b8' },                     xaxis: { gridcolor: '#1e2a3a', zerolinecolor: '#253347' },
+        yaxis: { gridcolor: '#1e2a3a', zerolinecolor: '#253347' }
+    };
+    Plotly.newPlot('graphOutput', [trace], layout, { responsive: true });
+}
+
+let chartInstance;
+function renderChart(nums) {
+    const ctx = document.getElementById('chartOutput').getContext('2d');
+    const plotType = document.getElementById('plotTypeSelect').value;
+    if (chartInstance) chartInstance.destroy();
+    chartInstance = new Chart(ctx, {
+        type: plotType === 'scatter' ? 'line' : plotType,
+        data: {
+            labels: nums.map((_, i) => `#${i+1}`),
+            datasets: [{
+                label: 'Values',
+                data: nums,
+                backgroundColor: '#3b82f6',
+                borderColor: '#1d4ed8',
+                fill: plotType === 'line' || plotType === 'scatter' ? false : true,
+                showLine: plotType !== 'bar',
+                pointRadius: plotType === 'scatter' ? 5 : 3
+            }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+}
+
+/* ── Solver tab graphInputWrapper solve graph ── */
+function solveGraph() {
+    const expr = document.getElementById('graphQuestion').value.trim();                             const type = document.getElementById('graphTypeSelect').value;
+    const graphDiv = document.getElementById('graphCanvas');
+    const x = [], y = [];
+
+    if (!expr) return alert('Enter a function or data to plot');
+
+    if (/^[\d\s,.-]+$/.test(expr)) {
+        const nums = expr.split(',').map(Number);
+        nums.forEach((n, i) => { x.push(i+1); y.push(n); });
+    } else {
+        for (let i = -10; i <= 10; i += 0.1) {
+            x.push(i);
+            try {
+                let val = expr.replace(/x/g, `(${i})`);
+                y.push(eval(val));
+            } catch { y.push(null); }
+        }
+    }
+
+    const layout = {
+        margin: { t: 10, b: 40, l: 40, r: 10 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#8fa0b8' },
+        xaxis: { gridcolor: '#1e2a3a', zerolinecolor: '#253347' },
+        yaxis: { gridcolor: '#1e2a3a', zerolinecolor: '#253347' }
+    };
+
+    Plotly.newPlot(graphDiv, [{
+        x, y,
+        type: type === 'scatter' ? 'scatter' : type,
+        mode: type === 'scatter' ? 'lines+markers' : undefined,
+        line: { color: '#3b82f6', width: 2.5 },
+        marker: { color: '#60a5fa' }
+    }], layout, { responsive: true });
+}
+
+/* ── Graph tab standalone plotter ── */
+function solveGraphTab() {
+    const expr = document.getElementById('graphQuestion2').value.trim();
+    const type = document.getElementById('graphTypeSelect2').value;
+    const graphDiv = document.getElementById('graphCanvasTab');
+    const x = [], y = [];
+
+    if (!expr) return alert('Enter a function or data to plot');
+
+    if (/^[\d\s,.-]+$/.test(expr)) {
+        const nums = expr.split(',').map(Number);
+        nums.forEach((n, i) => { x.push(i+1); y.push(n); });
+    } else {
+        for (let i = -10; i <= 10; i += 0.1) {
+            x.push(i);
+            try {
+                let val = expr.replace(/x/g, `(${i})`);
+                y.push(eval(val));
+            } catch { y.push(null); }
+        }
+    }
+
+    const layout = {
+        margin: { t: 10, b: 40, l: 40, r: 10 },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#8fa0b8' },
+        xaxis: { gridcolor: '#1e2a3a', zerolinecolor: '#253347' },
+        yaxis: { gridcolor: '#1e2a3a', zerolinecolor: '#253347' }
+    };
+
+    Plotly.newPlot(graphDiv, [{
+        x, y,
+        type: type === 'scatter' ? 'scatter' : type,
+        mode: type === 'scatter' ? 'lines+markers' : undefined,
+        line: { color: '#3b82f6', width: 2.5 },
+        marker: { color: '#60a5fa' }
+    }], layout, { responsive: true });
+}
+
+/* ═══════════════════════ IMAGE OCR ═══════════════════════ */
+const questionImage = document.getElementById('questionImage');
+const imagePreview = document.getElementById('imagePreview');
+
+// Allow drag & drop on drop zone
+const dropZone = document.querySelector('.drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; });
+dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = ''; });
+dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.style.borderColor = '';
+    if (e.dataTransfer.files.length) {
+        questionImage.files = e.dataTransfer.files;
+        previewImage(e.dataTransfer.files[0]);
+    }
+});
+
+questionImage.addEventListener('change', () => {
+    if (questionImage.files[0]) previewImage(questionImage.files[0]);
+    else imagePreview.style.display = 'none';
+});
+
+function previewImage(file) {
+    const reader = new FileReader();
+    reader.onload = e => { imagePreview.src = e.target.result; imagePreview.style.display = 'block'; };
+    reader.readAsDataURL(file);                 }
+
+let ocrText = '';
+                                                async function extractOCR() {
+    if (!questionImage.files.length) return alert('Please select an image');
+    const formData = new FormData();                formData.append('image', questionImage.files[0]);
+    const ocrOutput = document.getElementById('ocrOutput');
+    ocrOutput.innerHTML = 'Processing image…';
+    try {
+        const res = await fetch('/upload-image', { method: 'POST', body: formData });                   const data = await res.json();
+        if (data.text) {                                    ocrText = data.text;
+            ocrOutput.innerHTML = data.text.replace(/(\S+)/g, '<mark>$1</mark>');
+            const questionInput = document.getElementById('question');
+            questionInput.value = data.text;                autoExpandTextarea(questionInput);
+        } else {
+            ocrOutput.innerHTML = 'No text detected.';
+        }
+    } catch (err) { ocrOutput.innerHTML = 'Error: ' + err.message; }
+}
+                                                async function sendOCRToAI() {
+    if (!ocrText) return alert('No OCR text available. Extract text first.');
+    const ai = document.getElementById('aiSelect').value;
+    const topic = document.getElementById('topicSelect').value;
+    const output = document.getElementById('output');
+    const answerField = document.getElementById('answer');
+
+    output.innerHTML = 'AI is processing…';
+    answerField.value = '';
+
+    const evtSource = new EventSource(`/solve-stream?question=${encodeURIComponent(ocrText)}&ai=${ai}&topic=${topic}`);
+    evtSource.onmessage = e => {
+        const data = JSON.parse(e.data);                if (data.answer) answerField.value = data.answer;                                               if (data.solution && !answerField.value) answerField.value = data.solution;
+        if (data.paragraph) output.innerHTML += data.paragraph + '\n\n';
+        if (data.done) evtSource.close();           };
+}
+
+/* ═══════════════════════ LOADING DOTS ═══════════════════════ */
+let loadingInterval;
+function startLoadingDots(el) {
+    let dots = 0;
+    el.innerHTML = '';                              loadingInterval = setInterval(() => {
+        dots = (dots + 1) % 4;                          el.innerHTML = 'Processing' + '.'.repeat(dots);                                             }, 500);
+}
+function stopLoadingDots() { clearInterval(loadingInterval); }
+                                                /* ═══════════════════════ QUIZ ═══════════════════════ */                                      let currentQuiz = null;
+
+fetch('https://opentdb.com/api_category.php')
+  .then(r => r.json())                            .then(data => {                                   const select = document.getElementById('quizCategory');
+    data.trivia_categories.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.innerText = c.name;
+        select.appendChild(opt);
+    });
+  }).catch(() => {});
+
+async function loadQuiz() {
+    const category = document.getElementById('quizCategory').value;                                 const difficulty = document.getElementById('quizDifficulty').value;
+    const type = document.getElementById('quizType').value;                                         const encoding = document.getElementById('quizEncoding').value || 'none';
+
+    let url = `https://opentdb.com/api.php?amount=50`;
+    if (category) url += `&category=${category}`;                                                   if (difficulty) url += `&difficulty=${difficulty}`;
+    if (type) url += `&type=${type}`;
+    if (encoding && encoding !== '') url += `&encode=${encoding}`;
+                                                    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.results || !data.results.length) return alert('No quiz data found!');
+
+    currentQuiz = data.results[Math.floor(Math.random() * data.results.length)];
+    displayQuiz(currentQuiz);                   }
+
+function decodeQuizText(text, encoding) {
+    if (encoding === 'base64') { try { return atob(text); } catch { return text; } }
+    if (encoding === 'url3986') { try { return decodeURIComponent(text); } catch { return text; } }                                                 return text;
+}
+
+function displayQuiz(q) {
+    const questionDiv = document.getElementById('quizQuestion');
+    const choicesDiv = document.getElementById('quizChoices');
+    const banner = document.getElementById('quizBanner');
+    const encoding = document.getElementById('quizEncoding').value || 'none';
+
+    banner.style.display = 'none';
+    questionDiv.innerHTML = decodeQuizText(q.question, encoding);
+    choicesDiv.innerHTML = '';                  
+    let choices = q.type === 'boolean' ? ['True', 'False'] :
+        [...q.incorrect_answers, q.correct_answer]
+            .map(c => decodeQuizText(c, encoding))
+            .sort(() => Math.random() - 0.5);
+
+    choices.forEach(c => {
+        const btn = document.createElement('button');
+        btn.innerHTML = c;
+        btn.onclick = () => handleAnswer(c, decodeQuizText(q.correct_answer, encoding));
+        choicesDiv.appendChild(btn);
+    });
+}
+
+function handleAnswer(selected, correct) {          const banner = document.getElementById('quizBanner');                                           banner.style.display = 'block';
+    if (selected === correct) {
+        banner.style.background = 'var(--green-bg)';
+        banner.style.color = 'var(--green)';            banner.style.border = '1px solid rgba(34,197,94,0.3)';
+        banner.style.borderRadius = 'var(--radius)';
+        banner.innerText = '✅ Correct!';
+    } else {
+        banner.style.background = 'var(--red-bg)';
+        banner.style.color = 'var(--red)';
+        banner.style.border = '1px solid rgba(239,68,68,0.3)';
+        banner.style.borderRadius = 'var(--radius)';
+        banner.innerHTML = `❌ Incorrect! Correct Answer: <strong>${decodeHTMLEntities(correct)}</strong>`;
+        const buttons = document.getElementById('quizChoices').children;
+        for (let btn of buttons) {
+            if (btn.innerText === decodeHTMLEntities(correct)) btn.style.borderColor = 'var(--green)';                                                      else if (btn.innerText === selected) btn.style.borderColor = 'var(--red)';
+        }
+    }
+}
+                                                function decodeHTMLEntities(text) {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = text;
+    return txt.value;                           }
+
+/* ═══════════════════════ THEME TOGGLE ═══════════════════════ */
+const themeBtn = document.getElementById('themeToggle');                                        themeBtn.addEventListener('click', () => {
+    document.documentElement.classList.toggle('light-mode');
+    const isLight = document.documentElement.classList.contains('light-mode');
+    themeBtn.textContent = isLight ? '🌙 Dark Mode' : '☀ Light Mode';
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+});
+if (localStorage.getItem('theme') === 'light') {    document.documentElement.classList.add('light-mode');
+    themeBtn.textContent = '🌙 Dark Mode';
+}
+
+/* ═══════════════════════ TOPIC → GRAPH TAB ═══════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {                                               const topicSelect = document.getElementById('topicSelect');
+    const graphWrapper = document.getElementById('graphInputWrapper');                              if (!topicSelect || !graphWrapper) return;
+    const toggleGraphWrapper = () => {
+        graphWrapper.style.display = topicSelect.value === 'plot' ? 'block' : 'none';
+    };
+    toggleGraphWrapper();
+    topicSelect.addEventListener('change', toggleGraphWrapper);                                 });
+
+/* ═══════════════════════ INIT ═══════════════════════ */
+loadAIs();                                      </script>
+
+<script src="app.js"></script>
+</body>
+</html>
+root@Vicecaptain:~/ai-api/public# cat server.mjscat: server.mjs: No such file or directory
+root@Vicecaptain:~/ai-api/public# cd ..
+root@Vicecaptain:~/ai-api# server.mjs
+-bash: server.mjs: command not found            root@Vicecaptain:~/ai-api# cat server.mjs
+import express from 'express';
+import bodyParser from 'body-parser';
+import { spawn } from 'child_process';
+import dotenv from 'dotenv';
+import { exec } from 'child_process';
+import multer from 'multer';
+import Tesseract from 'tesseract.js';
+
+dotenv.config();
+
+const app = express();
+app.use(bodyParser.json());
+
+const PORT = process.env.PORT || 4002;          
+const upload = multer({ dest: 'uploads/' });
+                                                app.post('/upload-image', upload.single('image'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+                                                    try {
+        const { data: { text } } = await Tesseract.recognize(req.file.path, 'eng');
+        res.json({ text });
+    } catch (err) {
+        res.status(500).json({ error: err.message });                                               }
+});                                             
+// Helper: fetch list of available Ollama models
+function getAvailableModels() {
+    return new Promise((resolve, reject) => {
+        exec('ollama list', (err, stdout, stderr) => {
+            if (err) return reject(stderr || err.message);
+            // Each model name is on a separate line
+            const models = stdout
+                .split('\n')
+                .map(line => line.trim().split(/\s+/)[0])
+                .filter(Boolean);
+            resolve(models);
+        });                                         });
+}
+
+// POST /solve
+// body: { question: "solve x**2 - 4", ai: "qwen2.5" }                                          app.post('/solve', async (req, res) => {
+    const { question, ai } = req.body;
+
+    if (!question || !ai) {
+        return res.status(400).json({ error: "Please provide 'question' and 'ai' fields." });
+    }
+
+    // Validate AI model
+// Fetch models dynamically                     let models;                                     try {
+    models = await getAvailableModels();        } catch (err) {
+    return res.status(500).json({ error: "Failed to get Ollama models: " + err });
+}                                               
+// Match user input with available models (allow partial match)
+const matchedModel = models.find(m => m.startsWith(ai));
+
+if (!matchedModel) {
+    return res.status(400).json({                       error: `Invalid AI model. Available models: ${models.join(', ')}`
+    });
+}                                               
+// Use the matched full model name              const chosenModel = matchedModel;
+
+    // Step 1: Solve using Python solver
+const topic = req.query.topic || ""; // get topic from query
+exec(`python3 ~/maths/python/solver.py "${question}" "${topic}"`, (err, stdout, stderr) => {
+        if (err) return res.status(500).json({ error: stderr || err.message });
+
+        // Extract only the final answer (last line with brackets)
+        const solutionMatch = stdout.trim().match(/\[.*\]/);
+        const solution = solutionMatch ? solutionMatch[0] : stdout.trim();
+
+// Step 2: Call Ollama using spawn for streaming
+const aiPrompt = `Explain step by step how to solve the following:\nQuestion: ${question}\nSolution: ${solution}`;
+
+// spawn the process
+const aiProcess = spawn('ollama', ['run', chosenModel]);
+
+let buffer = '';
+let explanation = '';
+
+aiProcess.stdout.on('data', (data) => {
+    const chunk = data.toString();
+    buffer += chunk;
+
+    // Check for finished paragraphs (double newline)
+    let parts = buffer.split('\n\n');
+
+    // Keep the last incomplete part in the buffer
+    buffer = parts.pop();
+
+    // Send each complete paragraph
+    for (const para of parts) {
+        explanation += para + '\n\n';
+        res.write(JSON.stringify({ ai_model: ai, solution, paragraph: para }) + '\n');
+    }
+});
+
+aiProcess.stderr.on('data', (data) => {             console.error('Ollama error:', data.toString());                                            });
+
+aiProcess.on('close', () => {
+    // Send any remaining paragraph
+    if (buffer.trim()) {
+        explanation += buffer;
+        res.write(`data: ${JSON.stringify({ paragraph: buffer })}\n\n`);
+    }
+
+    // Send the final answer explicitly
+    res.write(`data: ${JSON.stringify({
+        solution,
+        explanation,                                    answer: solution, // <-- This is what the frontend needs
+        done: true
+    })}\n\n`);
+
+    res.end();
+});
+// Send prompt to Ollama via stdin
+aiProcess.stdin.write(aiPrompt);
+aiProcess.stdin.end();                              });
+});
+
+// Serve static dashboard
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/solve-stream', (req, res) => {
+    const question = req.query.question;
+    const ai = req.query.ai;
+
+    if (!question || !ai) return res.status(400).end('Missing question or ai');
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+                                                    // Step 1: Solve using Python
+    exec(`python3 ~/maths/python/solver.py "${question}"`, (err, stdout, stderr) => {
+        if (err) return res.write(`data: ${JSON.stringify({ error: stderr })}\n\n`);
+
+        const solutionMatch = stdout.trim().match(/\[.*\]/);
+        const solution = solutionMatch ? solutionMatch[0] : stdout.trim();
+
+        let buffer = '';
+        let explanation = '';
+                                                        // Step 2: Run Ollama with streaming
+        const aiProcess = spawn('ollama', ['run', ai]);
+
+        aiProcess.stdout.on('data', (data) => {
+            const chunk = data.toString();
+            buffer += chunk;
+
+            // Split paragraphs by double newline
+            let parts = buffer.split('\n\n');
+            buffer = parts.pop(); // last incomplete paragraph                                  
+            for (const para of parts) {
+                explanation += para + '\n\n';
+                res.write(`data: ${JSON.stringify({ solution, paragraph: para })}\n\n`);
+            }
+        });
+
+        aiProcess.stderr.on('data', (data) => {
+            console.error('Ollama error:', data.toString());
+        });
+
+// In /solve-stream, after Python solver
+const finalAnswer = solution; // or compute proper answer
+
+aiProcess.on('close', () => {
+    if (buffer.trim()) {
+        explanation += buffer;
+        res.write(`data: ${JSON.stringify({ paragraph: buffer, solution: finalAnswer })}\n\n`);
+    }
+                                                    // Send final object indicating stream is done and answer
+    res.write(`data: ${JSON.stringify({ explanation, done: true, answer: finalAnswer })}\n\n`);
+    res.end();
+});
+        // Send prompt to Ollama
+        aiProcess.stdin.write(`Explain step by step how to solve:\n${question}`);                       aiProcess.stdin.end();
+    });
+});
+
+// GET /ais
+app.get('/ais', async (req, res) => {
+    try {
+        const models = await getAvailableModels();
+        res.json({ models });                       } catch (err) {
+        res.status(500).json({ error: "Failed to get Ollama models: " + err });
+    }
+});
+
+app.post('/discuss', async (req, res) => {
+    const { prompt, ai } = req.body;
+
+    if (!prompt || !ai) return res.status(400).json({ error: 'Missing prompt or AI' });
+
+    // Spawn Ollama with streaming disabled (just get full response)
+    const aiProcess = spawn('ollama', ['run', ai]);
+
+    let buffer = '';
+
+    aiProcess.stdout.on('data', (data) => {
+        buffer += data.toString();
+    });
+
+    aiProcess.stderr.on('data', (data) => {
+        console.error('Ollama error:', data.toString());
+    });
+
+    aiProcess.on('close', () => {
+        res.json({ response: buffer.trim() });
+    });
+
+    // Send prompt to Ollama
+    aiProcess.stdin.write(prompt);
+    aiProcess.stdin.end();
+});
+
+app.post('/ai-stream', (req, res) => {
+    const { prompt, ai } = req.body;
+    if (!prompt || !ai) return res.status(400).end();
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const aiProcess = spawn('ollama', ['run', ai]);
+
+    let buffer = '';
+    aiProcess.stdout.on('data', (data) => {             buffer += data.toString();
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop(); // keep incomplete paragraph
+        lines.forEach(line => res.write(`data: ${JSON.stringify({ paragraph: line })}\n\n`));
+    });
+
+    aiProcess.on('close', () => {
+        if (buffer.trim()) res.write(`data: ${JSON.stringify({ paragraph: buffer })}\n\n`);
+        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+        res.end();
+    });
+
+    aiProcess.stdin.write(prompt);
+    aiProcess.stdin.end();
+});
+
+app.listen(PORT, () => {
+    console.log(`AI API server running on port ${PORT}`);                                       });
+root@Vicecaptain:~/ai-api#
