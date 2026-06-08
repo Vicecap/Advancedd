@@ -58,10 +58,33 @@ const LEVEL_XP_BASE: Record<Level, number> = { beginner: 50, intermediate: 100, 
 const DURATION_LABELS: Record<Duration, string> = { 15: "15 min", 30: "30 min", 60: "1 hour", 120: "2 hours" };
 const PASS_THRESHOLD = 50;
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types & API Shape ────────────────────────────────────────────────────────
 
-interface PdfItem { title: string; pdf: string; description: string; source: string; }
-interface PdfApiResponse { total: number; page: number; limit: number; totalPages: number; data: PdfItem[]; }
+interface ApiItem {
+  id: string;
+  title: string;
+  author: string | null;
+  description: string | null;
+  type: string;
+  subject: string | null;
+  category: string | null;
+  publisher: string | null;
+  grade_level: string | null;
+  formats: {
+    pdf: string | null;
+    epub: string | null;
+    txt: string | null;
+    html: string | null;
+  };
+}
+
+interface PdfItem {
+  id: string;
+  title: string;
+  pdf: string;
+  description: string;
+  source: string;
+}
 
 interface ExamQuestion { q: string; opts: string[]; ans: string; exp: string; }
 
@@ -80,6 +103,16 @@ interface ExamAttempt {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+function normalisePdf(raw: ApiItem): PdfItem {
+  return {
+    id: raw.id || genId(),
+    title: raw.title,
+    pdf: raw.formats?.pdf ?? "",
+    description: raw.description ?? raw.grade_level ?? "",
+    source: raw.publisher ?? "General",
+  };
+}
 
 function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
@@ -133,7 +166,7 @@ function saveAttempt(attempt: ExamAttempt) {
     const existing = JSON.parse(localStorage.getItem("sh_attempts") ?? "[]") as ExamAttempt[];
     existing.unshift(attempt);
     localStorage.setItem("sh_attempts", JSON.stringify(existing.slice(0, 50)));
-  } catch {}
+  } catch { }
 }
 
 function loadAttempts(): ExamAttempt[] {
@@ -152,7 +185,7 @@ function StudyMaterials({ onBack }: { onBack: () => void }) {
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<PdfItem[]>([]);
   const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [pdfViewer, setPdfViewer] = useState<{ url: string; title: string } | null>(null);
@@ -165,18 +198,32 @@ function StudyMaterials({ onBack }: { onBack: () => void }) {
       if (cls !== "all") url += `&class=${cls}`;
       if (q.trim()) url += `&search=${encodeURIComponent(q.trim())}`;
       const res = await fetch(url);
-      const data: PdfApiResponse = await res.json();
-      setTotal(data.total);
-      setTotalPages(data.totalPages);
-      // Filter out .ini files
-      const clean = (data.data ?? []).filter(d => !d.title.endsWith(".ini") && d.pdf.endsWith(".pdf"));
+      const data = await res.json();
+
+      let newItems: PdfItem[] = [];
+
+      // Handle paginated response { success, data, pagination }
+      if (data && data.data && Array.isArray(data.data)) {
+        newItems = (data.data as ApiItem[]).map(normalisePdf);
+        setTotal(data.pagination?.total ?? (append ? total + newItems.length : newItems.length));
+        setHasMore(data.pagination?.has_next ?? false);
+      } else if (Array.isArray(data)) {
+        // Fallback for raw arrays
+        newItems = (data as ApiItem[]).map(normalisePdf);
+        setTotal(append ? prev => prev + newItems.length : newItems.length);
+        setHasMore(newItems.length === LIMIT);
+      }
+
+      // Basic local filtering for missing titles/PDFs
+      const clean = newItems.filter(d => d.title && !d.title.endsWith(".ini") && d.pdf);
+
       setItems(prev => append ? [...prev, ...clean] : clean);
     } catch {
       if (!append) setItems([]);
     } finally {
       append ? setLoadingMore(false) : setLoading(false);
     }
-  }, []);
+  }, [total]);
 
   useEffect(() => {
     setPage(1);
@@ -218,7 +265,7 @@ function StudyMaterials({ onBack }: { onBack: () => void }) {
         </button>
         <div>
           <h2 className="text-lg font-display font-bold text-white">Study Materials</h2>
-          <p className="text-xs text-muted-foreground">{total.toLocaleString()} documents available</p>
+          <p className="text-xs text-muted-foreground">{total > 0 ? total.toLocaleString() : items.length} documents available</p>
         </div>
       </div>
 
@@ -252,7 +299,7 @@ function StudyMaterials({ onBack }: { onBack: () => void }) {
       </div>
 
       {/* Grid */}
-      {loading ? (
+      {loading && page === 1 ? (
         <div className="flex items-center justify-center py-16">
           <Loader2 className="w-8 h-8 text-amber-400 animate-spin" />
         </div>
@@ -267,7 +314,7 @@ function StudyMaterials({ onBack }: { onBack: () => void }) {
             {items.map((item, i) => {
               const badge = classBadge(item.description || item.title);
               return (
-                <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+                <motion.div key={item.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: (i % 20) * 0.02 }}
                   className="rounded-xl p-3.5 flex flex-col gap-2 group"
                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -278,7 +325,7 @@ function StudyMaterials({ onBack }: { onBack: () => void }) {
                     </div>
                     <p className="text-[12px] font-medium text-white/90 leading-snug line-clamp-3 flex-1">{item.title}</p>
                   </div>
-                  <div className="flex items-center justify-between mt-auto">
+                  <div className="flex items-center justify-between mt-auto pt-2">
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
                       style={{ color: badge.color, background: badge.bg, border: `1px solid ${badge.border}` }}>
                       {badge.label}
@@ -301,24 +348,24 @@ function StudyMaterials({ onBack }: { onBack: () => void }) {
           </div>
 
           {/* Load More */}
-          {page < totalPages && (
-            <div className="flex justify-center pt-2">
+          {hasMore && (
+            <div className="flex justify-center pt-4 pb-8">
               <button onClick={loadMore} disabled={loadingMore}
                 className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-all"
                 style={{ background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)" }}>
                 {loadingMore ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronDown className="w-4 h-4" />}
-                {loadingMore ? "Loading…" : `Load More (${items.length} / ${total.toLocaleString()})`}
+                {loadingMore ? "Loading…" : "Load More"}
               </button>
             </div>
           )}
         </>
       )}
 
-      {/* ── Inline PDF Viewer (full-screen, same as Novels) ── */}
+      {/* ── Inline PDF Viewer (full-screen, proxied) ── */}
       <AnimatePresence>
         {pdfViewer && (
           <PdfReader
-            url={pdfViewer.url}
+            url={`/api/external-pdf?url=${encodeURIComponent(pdfViewer.url)}`}
             title={pdfViewer.title}
             subtitle="Study Material"
             accentColor="#fbbf24"
@@ -586,7 +633,7 @@ export default function StudyHallTab() {
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ amount: Math.min(xp, 500), source: `exam:${examConfig.type}:${examConfig.subject}` }),
-      }).catch(() => {});
+      }).catch(() => { });
     }
 
     setView("results");
@@ -609,14 +656,12 @@ export default function StudyHallTab() {
     };
 
     const prompt = `You are a ZIMSEC and Cambridge O-Level exam setter. Generate exactly ${numQ} multiple-choice questions for ${cfg.subject} on the topic "${cfg.topic}". Difficulty: ${diffMap[cfg.level]}.
-
 RULES:
 - Each question must have exactly 4 options labeled A, B, C, D
 - Exactly one correct answer
 - Include a brief explanation (1-2 sentences) for the correct answer
 - Questions should be suitable for secondary school students
 - Mix recall, application, and analysis questions
-
 RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
 [{"q":"question text","opts":["A. option","B. option","C. option","D. option"],"ans":"A","exp":"explanation"}]`;
 
@@ -815,11 +860,13 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
   }
 
   // ── Materials View ─────────────────────────────────────────────────────────
+
   if (view === "materials") {
     return <StudyMaterials onBack={() => setView("hub")} />;
   }
 
   // ── Exam Config View ───────────────────────────────────────────────────────
+
   if (view === "exam-config") {
     return (
       <div className="space-y-4">
@@ -836,6 +883,7 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
   }
 
   // ── Generating View ────────────────────────────────────────────────────────
+
   if (view === "generating") {
     return (
       <div className="flex flex-col items-center justify-center min-h-64 py-16 space-y-5">
@@ -860,6 +908,7 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
   }
 
   // ── Exam View ──────────────────────────────────────────────────────────────
+
   if (view === "exam" && questions.length > 0 && examConfig) {
     const q = questions[currentQ];
     const pctTime = Math.round((timeLeft / (examConfig.duration * 60)) * 100);
@@ -899,7 +948,6 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
           <motion.div key={currentQ} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
             className="rounded-2xl p-5 space-y-4" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.09)" }}>
             <p className="text-[15px] font-semibold text-white leading-relaxed">{q.q}</p>
-
             <div className="space-y-2">
               {q.opts.map((opt, oi) => {
                 const letter = ["A", "B", "C", "D"][oi];
@@ -971,6 +1019,7 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
   }
 
   // ── Results View ───────────────────────────────────────────────────────────
+
   if (view === "results" && examResult) {
     const a = examResult;
     const pct = Math.round((a.score / a.total) * 100);
@@ -1086,6 +1135,7 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
   }
 
   // ── History View ───────────────────────────────────────────────────────────
+
   if (view === "history") {
     const passCount = attempts.filter(a => a.passed).length;
     const passRate = attempts.length > 0 ? Math.round((passCount / attempts.length) * 100) : 0;
@@ -1135,7 +1185,9 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
             {attempts.map(a => {
               const pct = Math.round((a.score / a.total) * 100);
               const { grade, color } = getGrade(pct);
-              const dt = new Date(a.timestamp);
+              const dt = a.timestamp ? new Date(a.timestamp) : new Date();
+              const formattedDate = isNaN(dt.getTime()) ? "Unknown Date" : dt.toLocaleDateString();
+
               return (
                 <div key={a.id} className="rounded-xl px-4 py-3 flex items-center gap-3"
                   style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -1145,7 +1197,7 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold text-white truncate">{a.config.subject} · {a.config.topic}</p>
-                    <p className="text-[11px] text-muted-foreground">{a.score}/{a.total} · {LEVEL_LABELS[a.config.level]} · {dt.toLocaleDateString()}</p>
+                    <p className="text-[11px] text-muted-foreground">{a.score}/{a.total} · {LEVEL_LABELS[a.config.level]} · {formattedDate}</p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-bold text-yellow-400">+{a.xpEarned} XP</p>

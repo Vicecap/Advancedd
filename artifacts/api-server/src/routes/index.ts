@@ -26,6 +26,7 @@ import supportRouter from "./support";
 
 const router: IRouter = Router();
 
+
 router.use(authRouter);
 router.use(healthRouter);
 router.use(mathRouter);

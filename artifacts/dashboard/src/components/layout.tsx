@@ -55,7 +55,7 @@ function fmt(n: number): string {
 }
 
 function TokenBar({ balance }: { balance: number }) {
-  const max = 600_000;
+  const max = 60_000;
   const pct = Math.min(100, (balance / max) * 100);
   const color = pct > 50 ? "#6ee7b7" : pct > 20 ? "#fbbf24" : "#f87171";
   return (
@@ -362,7 +362,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                     style={{ width: `${guestPct}%`, background: guestDepleted ? "#f87171" : "linear-gradient(90deg, rgba(139,92,246,0.7), rgba(167,139,250,1))" }} />
                 </div>
                 {guestDepleted && (
-                  <p className="text-[10px] text-red-400">Tokens depleted — sign in for 600K/week!</p>
+                  <p className="text-[10px] text-red-400">Tokens depleted — sign in for 60K/week!</p>
                 )}
               </div>
 

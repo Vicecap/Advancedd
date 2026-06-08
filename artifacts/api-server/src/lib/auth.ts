@@ -71,7 +71,6 @@ export function setSessionCookie(res: Response, sid: string) {
 }
 
 export async function provisionUser(user: {
-  id?: string;
   email: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -80,26 +79,44 @@ export async function provisionUser(user: {
   googleId?: string | null;
   authProvider: string;
 }): Promise<AuthUser> {
+
+  const email = user.email?.toLowerCase();
+
+  const existing = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email))
+    .limit(1);
+
+  if (existing.length) {
+    const [updated] = await db
+      .update(usersTable)
+      .set({
+        firstName: user.firstName ?? existing[0].firstName,
+        lastName: user.lastName ?? existing[0].lastName,
+        profileImageUrl: user.profileImageUrl ?? existing[0].profileImageUrl,
+        googleId: user.googleId ?? existing[0].googleId,
+        authProvider: user.authProvider,
+        emailVerified: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(usersTable.id, existing[0].id))
+      .returning();
+
+    return updated;
+  }
+
   const [saved] = await db
     .insert(usersTable)
     .values({
-      ...(user.id ? { id: user.id } : {}),
-      email: user.email,
+      email,
       firstName: user.firstName ?? null,
       lastName: user.lastName ?? null,
       profileImageUrl: user.profileImageUrl ?? null,
       passwordHash: user.passwordHash ?? null,
       googleId: user.googleId ?? null,
       authProvider: user.authProvider,
-    })
-    .onConflictDoUpdate({
-      target: user.googleId ? usersTable.googleId : usersTable.email,
-      set: {
-        firstName: user.firstName ?? undefined,
-        lastName: user.lastName ?? undefined,
-        profileImageUrl: user.profileImageUrl ?? undefined,
-        updatedAt: new Date(),
-      },
+      emailVerified: true,
     })
     .returning();
 
@@ -110,10 +127,10 @@ export async function provisionUser(user: {
 
   return {
     id: saved.id,
-    email: saved.email ?? null,
-    firstName: saved.firstName ?? null,
-    lastName: saved.lastName ?? null,
-    profileImageUrl: saved.profileImageUrl ?? null,
+    email: saved.email,
+    firstName: saved.firstName,
+    lastName: saved.lastName,
+    profileImageUrl: saved.profileImageUrl,
     authProvider: saved.authProvider,
     isAdmin: saved.isAdmin ?? false,
     isPremium: saved.isPremium ?? false,

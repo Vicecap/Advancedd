@@ -4,7 +4,7 @@ import { eq, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
-export const WEEKLY_ALLOWANCE = 600_000;
+export const WEEKLY_ALLOWANCE = 60_000;
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function getOrCreateBalance(userId: string) {

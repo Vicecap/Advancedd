@@ -7,9 +7,11 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler } from "./middlewares/errorHandler";
 import { authMiddleware } from "./middlewares/authMiddleware";
+import manualBilling from "./routes/manual-billing";
 
 const app: Express = express();
 app.set("trust proxy", 1);
+// In your main router file (e.g. src/routes/index.ts or app.ts)
 
 app.use(
   pinoHttp({

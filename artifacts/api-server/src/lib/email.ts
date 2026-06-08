@@ -21,6 +21,230 @@ function createTransport() {
 }
 
 const FROM = process.env.EMAIL_FROM ?? "Zimsolve <noreply@zimsolve.app>";
+const ADMIN_NOTIFY = process.env.ADMIN_EMAIL ?? process.env.EMAIL_USER ?? "";
+
+/* ── Receipt email ──────────────────────────────────────────────────────── */
+export async function sendPaymentReceiptEmail(to: string, receipt: {
+  purchaseId: number;
+  username?: string | null;
+  tokensAmount: number;
+  amountUsdCents: number;
+  paymentMethod: string;
+  transactionId?: string | null;
+  manualReference?: string | null;
+  packageLabel: string;
+  completedAt: Date;
+  newBalance: number;
+}): Promise<boolean> {
+  const transport = createTransport();
+
+  const usd = (receipt.amountUsdCents / 100).toFixed(2);
+  const tokens = receipt.tokensAmount.toLocaleString();
+  const newBal = receipt.newBalance.toLocaleString();
+  const date = receipt.completedAt.toUTCString();
+  const methodLabel: Record<string, string> = {
+    paypal: "PayPal",
+    ecocash: "EcoCash",
+    ecocash_diaspora: "EcoCash Diaspora",
+    bank: "Bank Transfer",
+    bitcoin: "Bitcoin",
+    manual: "Admin Grant",
+  };
+  const method = methodLabel[receipt.paymentMethod] ?? receipt.paymentMethod;
+
+  if (!transport) {
+    console.log(
+      `[EMAIL] Receipt for ${to}: ${tokens} tokens — $${usd} via ${method} ` +
+      `(Ref: ${receipt.transactionId ?? receipt.manualReference ?? "N/A"})`
+    );
+    return false;
+  }
+
+  try {
+    await transport.sendMail({
+      from: FROM,
+      to,
+      subject: `Receipt — ${tokens} Tokens Purchased — Zimsolve`,
+      html: `
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;
+                    background:#0f1117;color:#e5e7eb;border-radius:16px;">
+
+          <div style="text-align:center;margin-bottom:28px;">
+            <span style="font-size:48px;">🧮</span>
+            <h1 style="color:#34d399;margin:8px 0 4px;font-size:22px;">Payment Successful!</h1>
+            <p style="color:#9ca3af;margin:0;font-size:14px;">
+              Your token balance has been credited. Here's your receipt.
+            </p>
+          </div>
+
+          <!-- Receipt box -->
+          <div style="background:#1a1d2e;border:2px solid rgba(52,211,153,0.35);
+                      border-radius:12px;padding:24px;margin-bottom:24px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:13px;width:40%;">Receipt #</td>
+                <td style="color:#e5e7eb;font-size:13px;font-weight:bold;">#${receipt.purchaseId}</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Date</td>
+                <td style="color:#e5e7eb;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">${date}</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Package</td>
+                <td style="color:#e5e7eb;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">${receipt.packageLabel}</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Tokens</td>
+                <td style="color:#a5b4fc;font-size:15px;font-weight:bold;
+                           border-top:1px solid rgba(255,255,255,0.06);">+${tokens}</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Amount Paid</td>
+                <td style="color:#34d399;font-size:15px;font-weight:bold;
+                           border-top:1px solid rgba(255,255,255,0.06);">$${usd} USD</td>
+              </tr>
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Payment Method</td>
+                <td style="color:#e5e7eb;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">${method}</td>
+              </tr>
+              ${receipt.transactionId ? `
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Transaction ID</td>
+                <td style="color:#e5e7eb;font-size:12px;font-family:monospace;word-break:break-all;
+                           border-top:1px solid rgba(255,255,255,0.06);">${receipt.transactionId}</td>
+              </tr>` : ""}
+              ${receipt.manualReference ? `
+              <tr>
+                <td style="padding:8px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Reference</td>
+                <td style="color:#e5e7eb;font-size:13px;font-family:monospace;
+                           border-top:1px solid rgba(255,255,255,0.06);">${receipt.manualReference}</td>
+              </tr>` : ""}
+            </table>
+          </div>
+
+          <!-- New balance -->
+          <div style="background:rgba(165,180,252,0.08);border:1px solid rgba(165,180,252,0.25);
+                      border-radius:10px;padding:16px;text-align:center;margin-bottom:24px;">
+            <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">Your New Token Balance</p>
+            <p style="margin:0;color:#a5b4fc;font-size:26px;font-weight:bold;
+                      font-family:monospace;">${newBal}</p>
+          </div>
+
+          <p style="color:#4b5563;font-size:11px;text-align:center;">
+            Thank you for using Zimsolve AI. If you did not make this purchase,
+            please contact support immediately.
+          </p>
+        </div>
+      `,
+    });
+    return true;
+  } catch (err) {
+    console.error("[EMAIL] Failed to send receipt email:", err);
+    return false;
+  }
+}
+
+/* ── Admin alert: manual payment approved/rejected ──────────────────────── */
+export async function sendManualPaymentStatusEmail(to: string, info: {
+  status: "approved" | "rejected";
+  purchaseId: number;
+  tokensAmount: number;
+  amountUsdCents: number;
+  manualReference: string;
+  paymentMethod: string;
+  adminNote?: string | null;
+  newBalance?: number;
+}): Promise<void> {
+  const transport = createTransport();
+  const usd = (info.amountUsdCents / 100).toFixed(2);
+  const tokens = info.tokensAmount.toLocaleString();
+  const isApproved = info.status === "approved";
+
+  if (!transport) {
+    console.log(`[EMAIL] Manual payment ${info.status} for ${to} — ${tokens} tokens`);
+    return;
+  }
+
+  try {
+    await transport.sendMail({
+      from: FROM,
+      to,
+      subject: isApproved
+        ? `✅ Payment Approved — ${tokens} Tokens Credited — Zimsolve`
+        : `❌ Payment Could Not Be Verified — Zimsolve`,
+      html: `
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:32px;
+                    background:#0f1117;color:#e5e7eb;border-radius:16px;">
+          <div style="text-align:center;margin-bottom:24px;">
+            <span style="font-size:44px;">${isApproved ? "✅" : "❌"}</span>
+            <h1 style="color:${isApproved ? "#34d399" : "#f87171"};margin:8px 0 4px;font-size:20px;">
+              ${isApproved ? "Payment Approved!" : "Payment Not Verified"}
+            </h1>
+          </div>
+          <div style="background:#1a1d2e;border:2px solid ${isApproved ? "rgba(52,211,153,0.35)" : "rgba(248,113,113,0.35)"};
+                      border-radius:12px;padding:20px;margin-bottom:20px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr>
+                <td style="padding:7px 0;color:#6b7280;font-size:13px;width:40%;">Reference</td>
+                <td style="color:#e5e7eb;font-size:13px;font-family:monospace;">${info.manualReference}</td>
+              </tr>
+              <tr>
+                <td style="padding:7px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Tokens</td>
+                <td style="color:#a5b4fc;font-size:14px;font-weight:bold;
+                           border-top:1px solid rgba(255,255,255,0.06);">${isApproved ? "+" : ""}${tokens}</td>
+              </tr>
+              <tr>
+                <td style="padding:7px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Amount</td>
+                <td style="color:#e5e7eb;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">$${usd} USD</td>
+              </tr>
+              ${info.adminNote ? `
+              <tr>
+                <td style="padding:7px 0;color:#6b7280;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">Note</td>
+                <td style="color:#e5e7eb;font-size:13px;
+                           border-top:1px solid rgba(255,255,255,0.06);">${info.adminNote}</td>
+              </tr>` : ""}
+            </table>
+          </div>
+          ${isApproved && info.newBalance !== undefined ? `
+          <div style="background:rgba(165,180,252,0.08);border:1px solid rgba(165,180,252,0.25);
+                      border-radius:10px;padding:14px;text-align:center;margin-bottom:20px;">
+            <p style="margin:0 0 4px;color:#9ca3af;font-size:12px;">New Token Balance</p>
+            <p style="margin:0;color:#a5b4fc;font-size:24px;font-weight:bold;font-family:monospace;">
+              ${info.newBalance.toLocaleString()}
+            </p>
+          </div>` : ""}
+          ${!isApproved ? `
+          <p style="color:#9ca3af;font-size:13px;">
+            Your payment could not be verified. Please contact support with your 
+            reference code <strong style="color:#e5e7eb;">${info.manualReference}</strong> 
+            if you believe this is an error.
+          </p>` : ""}
+          <p style="color:#4b5563;font-size:11px;text-align:center;margin-top:16px;">
+            Zimsolve AI — If you have questions, contact support through the app.
+          </p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    console.error("[EMAIL] Failed to send payment status email:", err);
+  }
+}
+
+/* ── Existing functions below (unchanged) ───────────────────────────────── */
 
 export async function sendVerificationEmail(to: string, code: string): Promise<boolean> {
   const transport = createTransport();
@@ -53,8 +277,6 @@ export async function sendVerificationEmail(to: string, code: string): Promise<b
     return false;
   }
 }
-
-const ADMIN_NOTIFY = process.env.ADMIN_EMAIL ?? process.env.EMAIL_USER ?? "";
 
 export async function sendSupportTicketNotification(ticket: {
   id: number; name: string | null; email: string; subject: string;

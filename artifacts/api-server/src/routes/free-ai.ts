@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import multer from "multer";
 
-const FREE_AI_BASE = "http://63.142.251.202:4002";
+const FREE_AI_BASE = "http://80.241.208.95:4002";
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 

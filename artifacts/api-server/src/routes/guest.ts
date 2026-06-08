@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 const router = Router();
 
-const WEEKLY_ALLOWANCE = 100_000;
+const WEEKLY_ALLOWANCE = 20_000;
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function getOrCreateRecord(deviceId: string) {

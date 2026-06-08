@@ -12,7 +12,7 @@ interface GuestSignUpPopupProps {
 const MESSAGES = {
   tokens: {
     title: "Weekly guest tokens used up",
-    body: "You've reached the 100K weekly guest token limit. Sign up for free to get 600K tokens per week and save your history.",
+    body: "You've reached the 25K weekly guest token limit. Sign up for free to get 600K tokens per week and save your history.",
   },
   pdf: {
     title: "Sign in to read PDFs",
@@ -83,7 +83,7 @@ export default function GuestSignUpPopup({ open, onClose, onOpenAuth, reason = "
 
               {reason === "tokens" && (
                 <p className="mt-4 text-[11px] text-white/30">
-                  Free tier: 100K tokens/week &nbsp;·&nbsp; Signed up: 600K tokens/week
+                  Free tier: 25K tokens/week &nbsp;·&nbsp; Signed up: 60K tokens/week
                 </p>
               )}
             </div>
