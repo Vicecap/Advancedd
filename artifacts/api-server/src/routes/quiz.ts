@@ -314,7 +314,7 @@ router.post("/explain", async (req, res) => {
       if (sid) {
         const { getSession } = await import("../lib/auth.js");
         const session = await getSession(sid);
-        if (session?.userId) await deductTokens(session.userId, tokensUsed);
+        if (session?.user?.id) await deductTokens(session.user.id, tokensUsed);
       }
     } catch {}
   } catch (e) {

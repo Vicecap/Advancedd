@@ -34,4 +34,11 @@ for (const route of ['create-order','status/:orderId','callback']) assert(text['
 for (const route of ['documents','search','search/suggestions','search/filters']) assert(text['artifacts/api-server/src/routes/documents.ts'].includes(`/v1/${route}`), `missing /api/v1/${route}`);
 assert(text['artifacts/dashboard/src/lib/documents-api.ts'].includes('/api/v1'), 'frontend document client must use /api/v1');
 assert(text['deploy/fail2ban/filter.d/zimsolve-security.conf']?.includes('SECURITY_EVENT') ?? fs.readFileSync('deploy/fail2ban/filter.d/zimsolve-security.conf','utf8').includes('SECURITY_EVENT'), 'fail2ban filter missing SECURITY_EVENT');
+
+assert(text['artifacts/dashboard/src/lib/csrf-fetch.ts'].includes('X-CSRF-Token'), 'dashboard must attach CSRF token');
+assert(text['artifacts/dashboard/src/main.tsx'].includes('installCsrfFetch'), 'dashboard must install CSRF fetch wrapper');
+assert(text['artifacts/api-server/src/routes/admin.ts'].includes('/admin/email-users'), 'admin email route missing');
+assert(text['artifacts/api-server/src/routes/admin.ts'].includes('sendAdminBroadcastEmail'), 'admin email sender missing');
+assert(/\.update\(tokenPurchasesTable\)[\s\S]*creditedAt[\s\S]*creditedAt} IS NULL[\s\S]*INSERT INTO token_balances/.test(text['artifacts/api-server/src/routes/billing.ts']), 'DiscHub crediting must claim purchase before balance increment');
+assert(text['artifacts/api-server/src/lib/tokens.ts'].includes('body.deviceId') && text['artifacts/api-server/src/lib/tokens.ts'].includes('req.query?.deviceId'), 'guest deviceId query/body support missing');
 console.log('security static checks passed');

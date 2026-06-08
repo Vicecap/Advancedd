@@ -2,11 +2,14 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db, usersTable, tokenBalancesTable } from "@workspace/db";
-import { eq, count, sql } from "drizzle-orm";
+import { eq, count, sql, and, inArray, isNotNull } from "drizzle-orm";
 import { createSession, setSessionCookie, type AuthUser } from "../lib/auth";
-import { sendAdminWelcomeEmail } from "../lib/email";
+import { redisRateLimit } from "../lib/rate-limiter";
+import { logSecurityEvent } from "../lib/security";
+import { sendAdminWelcomeEmail, sendAdminBroadcastEmail } from "../lib/email";
 
 const router: IRouter = Router();
+const adminEmailLimit = redisRateLimit({ windowSecs: 3600, max: 5, keyPrefix: "rl:admin:email", message: "Too many admin email sends." });
 
 function getAdminToken(): string | null {
   return process.env.ADMIN_INIT_TOKEN || null;
@@ -203,6 +206,40 @@ router.post("/admin/create-admin", async (req: Request, res: Response): Promise<
 
   await sendAdminWelcomeEmail(normalEmail, temporaryPassword);
   res.status(201).json({ ok: true, email: normalEmail });
+});
+
+/* ── POST /admin/email-users — send a simple admin email to verified signed-up users ── */
+router.post("/admin/email-users", adminEmailLimit, async (req: Request, res: Response): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+
+  const mode = req.body?.mode === "all" ? "all" : "selected";
+  const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+  const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+  const userIds = Array.isArray(req.body?.userIds) ? req.body.userIds.filter((id: unknown): id is string => typeof id === "string") : [];
+
+  if (!subject || subject.length > 160) { res.status(400).json({ error: "Subject is required and must be 160 characters or less." }); return; }
+  if (!body || body.length > 10_000) { res.status(400).json({ error: "Email body is required and must be 10,000 characters or less." }); return; }
+  if (mode === "selected" && userIds.length === 0) { res.status(400).json({ error: "Select at least one recipient." }); return; }
+
+  const where = mode === "all"
+    ? and(eq(usersTable.emailVerified, true), isNotNull(usersTable.email))
+    : and(eq(usersTable.emailVerified, true), isNotNull(usersTable.email), inArray(usersTable.id, userIds));
+
+  const recipients = await db
+    .select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable)
+    .where(where);
+
+  let sent = 0;
+  let failed = 0;
+  for (const recipient of recipients) {
+    if (!recipient.email) { failed++; continue; }
+    const ok = await sendAdminBroadcastEmail(recipient.email, subject, body);
+    if (ok) sent++; else failed++;
+  }
+
+  await logSecurityEvent(req, "admin_bulk_email_sent", "medium", req.user?.id, "Admin sent user email", { mode, attempted: recipients.length, sent, failed });
+  res.json({ attempted: recipients.length, sent, failed });
 });
 
 export default router;

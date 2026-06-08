@@ -658,7 +658,7 @@ router.post("/upload-image", visionRateLimit, requireTokens(TOKENS_PER_REQUEST),
       return;
     }
     const dataUrl     = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
-    const text = await callVisionModel([
+    const text = await callVisionModel(([
       {
         role: "user",
         content: [
@@ -669,7 +669,7 @@ router.post("/upload-image", visionRateLimit, requireTokens(TOKENS_PER_REQUEST),
           },
         ] as Parameters<typeof openrouter.chat.completions.create>[0]["messages"][0]["content"],
       },
-    ]);
+    ] as any));
 
     let finalText = text;
     if (!finalText || finalText.startsWith("Could not extract")) {
@@ -986,7 +986,7 @@ router.post("/graph-ai-solve", visionRateLimit, requireTokens(TOKENS_PER_REQUEST
     ? `${safePrompt}\n\nPlease analyse and solve what is shown in the image.`
     : "Please identify the question, graph, or diagram in this image and provide a complete step-by-step solution or analysis.";
 
-  const response = await callVisionModel([
+  const response = await callVisionModel(([
     { role: "system", content: systemPrompt },
     {
       role: "user",
@@ -995,7 +995,7 @@ router.post("/graph-ai-solve", visionRateLimit, requireTokens(TOKENS_PER_REQUEST
         { type: "text", text: userText },
       ] as Parameters<typeof openrouter.chat.completions.create>[0]["messages"][0]["content"],
     },
-  ], 3000);
+  ] as any), 3000);
 
   res.json({ response, model: OR_VISION_PRIMARY });
 

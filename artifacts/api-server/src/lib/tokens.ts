@@ -8,7 +8,9 @@ export const GUEST_WEEKLY_ALLOWANCE = 20_000;
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export function getGuestId(req: Request): string {
-  const raw = req.cookies?.guest_id || req.headers["x-guest-id"] || req.headers["x-device-id"];
+  const body = req.body && typeof req.body === "object" ? req.body as Record<string, unknown> : {};
+  const queryDeviceId = req.query?.deviceId;
+  const raw = body.deviceId || (Array.isArray(queryDeviceId) ? queryDeviceId[0] : queryDeviceId) || req.cookies?.guest_id || req.headers["x-guest-id"] || req.headers["x-device-id"];
   if (typeof raw === "string" && /^[a-zA-Z0-9_-]{16,128}$/.test(raw)) return raw;
   const ip = ((req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown").slice(0, 80);
   const ua = ((req.headers["user-agent"] as string | undefined) || "unknown").slice(0, 160);

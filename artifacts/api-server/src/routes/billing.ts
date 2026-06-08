@@ -11,6 +11,7 @@ import {
 } from "../lib/email";
 
 const router = Router();
+function paramOne(value: string | string[] | undefined): string { return Array.isArray(value) ? value[0] : (value ?? ""); }
 
 /* ── Token packages ───────────────────────────────────────────────────────── */
 export const PACKAGES = [
@@ -205,19 +206,33 @@ async function verifyDischubStatus(orderId: string): Promise<{ status: "success"
 }
 
 async function creditDischubPurchase(req: Request, purchase: typeof tokenPurchasesTable.$inferSelect, providerMetadata: unknown): Promise<boolean> {
-  if (purchase.creditedAt || purchase.status === "completed") {
-    await logSecurityEvent(req, "payment_duplicate_credit", "high", purchase.userId, "Duplicate DiscHub credit attempt", { orderId: purchase.providerOrderId, blocked: true });
-    return false;
-  }
+  let credited = false;
   await db.transaction(async (tx) => {
-    const [locked] = await tx.select().from(tokenPurchasesTable).where(and(eq(tokenPurchasesTable.id, purchase.id), sql`${tokenPurchasesTable.creditedAt} IS NULL`));
-    if (!locked) return;
+    const now = new Date();
+    const [claimed] = await tx
+      .update(tokenPurchasesTable)
+      .set({
+        status: "completed",
+        completedAt: now,
+        creditedAt: now,
+        verifiedAt: now,
+        providerMetadata,
+      })
+      .where(and(eq(tokenPurchasesTable.id, purchase.id), sql`${tokenPurchasesTable.creditedAt} IS NULL`))
+      .returning({ id: tokenPurchasesTable.id });
+
+    if (!claimed) return;
+
     await tx.execute(sql`INSERT INTO token_balances (user_id, balance, total_used, last_refill_at)
       VALUES (${purchase.userId}, ${purchase.tokensAmount}, 0, NOW())
       ON CONFLICT (user_id) DO UPDATE SET balance = token_balances.balance + ${purchase.tokensAmount}`);
-    await tx.update(tokenPurchasesTable).set({ status: "completed", completedAt: new Date(), creditedAt: new Date(), verifiedAt: new Date(), providerMetadata }).where(eq(tokenPurchasesTable.id, purchase.id));
+    credited = true;
   });
-  return true;
+
+  if (!credited) {
+    await logSecurityEvent(req, "payment_duplicate_credit", "high", purchase.userId, "Duplicate DiscHub credit attempt", { orderId: purchase.providerOrderId, blocked: true });
+  }
+  return credited;
 }
 
 function sanitiseString(val: unknown, maxLen = 500): string {
@@ -485,7 +500,7 @@ router.post(
   adminLimit,
   requireAdmin,
   async (req: Request, res: Response) => {
-    const purchaseId = parseInt(req.params.id);
+    const purchaseId = parseInt(paramOne(req.params.id));
     if (isNaN(purchaseId) || purchaseId < 1) {
       return res.status(400).json({ error: "Invalid purchase ID" });
     }
@@ -580,7 +595,7 @@ router.post(
   adminLimit,
   requireAdmin,
   async (req: Request, res: Response) => {
-    const purchaseId = parseInt(req.params.id);
+    const purchaseId = parseInt(paramOne(req.params.id));
     if (isNaN(purchaseId) || purchaseId < 1) {
       return res.status(400).json({ error: "Invalid purchase ID" });
     }
@@ -676,15 +691,13 @@ router.post(
   adminLimit,
   requireAdmin,
   async (req: Request, res: Response) => {
-    const userId = Number.isFinite(Number(req.body?.userId))
-      ? Math.floor(Number(req.body.userId))
-      : null;
+    const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : null;
     const tokens = Number.isFinite(Number(req.body?.tokens))
       ? Math.floor(Number(req.body.tokens))
       : null;
     const reason = sanitiseString(req.body?.reason, 500) || "Manual grant by admin";
 
-    if (!userId || userId < 1 || !tokens || tokens < 1) {
+    if (!userId || !tokens || tokens < 1) {
       return res.status(400).json({ error: "userId and positive tokens required" });
     }
 
@@ -753,15 +766,13 @@ router.post(
   adminLimit,
   requireAdmin,
   async (req: Request, res: Response) => {
-    const userId = Number.isFinite(Number(req.body?.userId))
-      ? Math.floor(Number(req.body.userId))
-      : null;
+    const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : null;
     const tokens = Number.isFinite(Number(req.body?.tokens))
       ? Math.floor(Number(req.body.tokens))
       : null;
     const reason = sanitiseString(req.body?.reason, 500) || "Manual grant by admin";
 
-    if (!userId || userId < 1 || !tokens || tokens < 1) {
+    if (!userId || !tokens || tokens < 1) {
       return res.status(400).json({ error: "userId and positive tokens required" });
     }
 

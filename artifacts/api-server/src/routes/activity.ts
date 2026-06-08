@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, activityLog, usersTable, tokenBalancesTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
+import { clearSession, getSessionId } from "../lib/auth";
 
 const router: IRouter = Router();
 
@@ -10,7 +11,7 @@ router.post("/activity", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Unauthenticated" });
     return;
   }
-  const userId = (req.user as { id: number }).id;
+  const userId = req.user!.id;
   const { type, description, xpEarned = 0, tokensUsed = 0 } = req.body as {
     type: string; description: string; xpEarned?: number; tokensUsed?: number;
   };
@@ -40,7 +41,7 @@ router.get("/activity", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Unauthenticated" });
     return;
   }
-  const userId = (req.user as { id: number }).id;
+  const userId = req.user!.id;
   const rows = await db
     .select()
     .from(activityLog)
@@ -56,15 +57,11 @@ router.delete("/auth/account", async (req, res): Promise<void> => {
     res.status(401).json({ error: "Unauthenticated" });
     return;
   }
-  const userId = (req.user as { id: number }).id;
+  const userId = req.user!.id;
   try {
     await db.delete(usersTable).where(eq(usersTable.id, userId));
-    req.logout(() => {
-      req.session.destroy(() => {
-        res.clearCookie("connect.sid");
-        res.json({ ok: true });
-      });
-    });
+    await clearSession(res, getSessionId(req));
+    res.json({ ok: true });
   } catch {
     res.status(500).json({ error: "Failed to delete account" });
   }

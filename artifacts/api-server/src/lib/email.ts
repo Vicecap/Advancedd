@@ -367,3 +367,27 @@ export async function sendAdminWelcomeEmail(to: string, temporaryPassword: strin
     console.error("[EMAIL] Failed to send admin welcome email:", err);
   }
 }
+
+export async function sendAdminBroadcastEmail(to: string, subject: string, body: string): Promise<boolean> {
+  const transport = createTransport();
+  if (!transport) {
+    console.warn("[EMAIL] Admin broadcast skipped: email transport not configured");
+    return false;
+  }
+  try {
+    await transport.sendMail({
+      from: FROM,
+      to,
+      subject,
+      text: body,
+      html: `<div style="font-family:sans-serif;max-width:640px;margin:0 auto;padding:24px;line-height:1.55;color:#111827;white-space:pre-wrap;">${body
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")}</div>`,
+    });
+    return true;
+  } catch (err) {
+    console.error("[EMAIL] Failed admin broadcast:", err);
+    return false;
+  }
+}
