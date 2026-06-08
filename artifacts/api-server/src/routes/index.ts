@@ -19,10 +19,10 @@ import pdfsRouter from "./pdfs";
 import billingRouter from "./billing";
 import communityRouter from "./community";
 import streakRouter from "./streak";
-import freeAiRouter from "./free-ai";
 import guestRouter from "./guest";
 import referralRouter from "./referral";
 import supportRouter from "./support";
+import documentsRouter from "./documents";
 
 const router: IRouter = Router();
 
@@ -36,6 +36,7 @@ router.use(externalRouter);
 router.use(tokensRouter);
 router.use(storageRouter);
 router.use(resourcesRouter);
+router.use(documentsRouter);
 router.use("/novels", novelsRouter);
 router.use("/quiz", quizRouter);
 router.use(ratingsRouter);
@@ -47,7 +48,6 @@ router.use(pdfsRouter);
 router.use(billingRouter);
 router.use(communityRouter);
 router.use(streakRouter);
-router.use(freeAiRouter);
 router.use(guestRouter);
 router.use(referralRouter);
 router.use(supportRouter);

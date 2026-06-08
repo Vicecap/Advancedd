@@ -2,7 +2,7 @@ import { db, studyResourcesTable } from "@workspace/db";
 import { count, like, sql } from "drizzle-orm";
 import { logger } from "./lib/logger";
 
-const NEW_API_URL = "http://80.241.208.95:5080/all";
+const NEW_API_URL = `${(process.env.DOCUMENTS_BASE_URL ?? "https://doc.totalsportss.online").replace(/\/$/, "")}/api/v1/documents`;
 
 const OLD_URL_PATTERN = "sea-proxy.windystorage.com";
 

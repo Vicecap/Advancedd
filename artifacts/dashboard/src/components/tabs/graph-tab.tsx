@@ -347,7 +347,7 @@ export default function GraphTab({ initialFunction = "", hideHeader = false }: G
         const prompt = aiPrompt.trim()
           ? aiPrompt
           : "Explain how to solve the mathematical problem described. Provide a step-by-step solution for an O-Level student.";
-        const res = await fetch(api("/free-ai/discuss"), {
+        const res = await fetch(api("/discuss"), {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: [{ role: "user", content: prompt }], model: realModel }),
         });

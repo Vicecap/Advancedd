@@ -32,7 +32,7 @@ function AboutContent() {
         </ul>
       </Section>
       <Section title="Free for Every Student">
-        Every registered student receives 600,000 AI tokens per week at no cost. Guest users receive 100,000 tokens per week.
+        Every registered student receives 60,000 AI tokens per week at no cost. Guest users receive 100,000 tokens per week.
         Additional token packages are available for heavy users. Core study resources — PDFs, calculators, graph plotters — are always free.
       </Section>
       <Section title="Built for Zimbabwe">

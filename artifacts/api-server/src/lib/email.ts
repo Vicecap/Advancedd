@@ -340,10 +340,10 @@ export async function sendSupportTicketReply(to: string, ticket: {
   } catch (err) { console.error("[EMAIL] Failed to send support reply:", err); }
 }
 
-export async function sendAdminWelcomeEmail(to: string, tempPassword: string): Promise<void> {
+export async function sendAdminWelcomeEmail(to: string, temporaryPassword: string): Promise<void> {
   const transport = createTransport();
   if (!transport) {
-    console.log(`[EMAIL] Admin credentials for ${to}: password=${tempPassword}`);
+    console.log(`[EMAIL] Admin credentials for ${to}: password=${temporaryPassword}`);
     return;
   }
   try {
@@ -357,7 +357,7 @@ export async function sendAdminWelcomeEmail(to: string, tempPassword: string): P
           <p style="color:#9ca3af;font-size:14px;">Your Zimsolve admin account has been set up.</p>
           <div style="background:#1a1d2e;border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:20px;margin:20px 0;">
             <p style="margin:4px 0;font-size:14px;color:#e5e7eb;"><strong>Email:</strong> ${to}</p>
-            <p style="margin:4px 0;font-size:14px;color:#e5e7eb;"><strong>Temporary password:</strong> <code style="color:#f87171;">${tempPassword}</code></p>
+            <p style="margin:4px 0;font-size:14px;color:#e5e7eb;"><strong>Temporary password:</strong> <code style="color:#f87171;">${temporaryPassword}</code></p>
           </div>
           <p style="color:#6b7280;font-size:12px;">Please change your password after first login.</p>
         </div>

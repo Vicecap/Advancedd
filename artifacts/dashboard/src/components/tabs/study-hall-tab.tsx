@@ -10,6 +10,13 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import PdfReader from "@/components/pdf-reader";
+function secureRandom(): number {
+  const a = new Uint32Array(1);
+  globalThis.crypto?.getRandomValues?.(a);
+  return a[0] / 0xffffffff;
+}
+function randomInt(max: number): number { return Math.floor(secureRandom() * max); }
+
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -114,7 +121,7 @@ function normalisePdf(raw: ApiItem): PdfItem {
   };
 }
 
-function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+function genId() { return Date.now().toString(36) + secureRandom().toString(36).slice(2); }
 
 function getScheduledConfig(type: "daily" | "weekly" | "monthly"): ExamConfig {
   const now = new Date();
@@ -667,7 +674,7 @@ RESPOND WITH ONLY VALID JSON, NO MARKDOWN, NO EXTRA TEXT:
 
     try {
       const model = cfg.model ?? "qwen/qwq-32b";
-      const endpoint = isFreeExamModel(model) ? api("/free-ai/discuss") : api("/discuss");
+      const endpoint = isFreeExamModel(model) ? api("/discuss") : api("/discuss");
       const body = isFreeExamModel(model)
         ? { messages: [{ role: "user", content: prompt }], model }
         : { prompt, model };

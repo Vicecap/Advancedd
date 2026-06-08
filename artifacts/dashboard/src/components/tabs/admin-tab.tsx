@@ -151,7 +151,7 @@ function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [firstName, setFirstName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ email: string; tempPassword: string } | null>(null);
+  const [result, setResult] = useState<{ email: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -164,16 +164,16 @@ function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreat
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), firstName: firstName.trim() || undefined }),
       });
-      const data = await res.json() as { ok?: boolean; error?: string; email?: string; tempPassword?: string };
+      const data = await res.json() as { ok?: boolean; error?: string; email?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed");
-      setResult({ email: data.email!, tempPassword: data.tempPassword! });
+      setResult({ email: data.email! });
     } catch (err) { setError((err as Error).message); }
     setLoading(false);
   };
 
   const copyCredentials = () => {
     if (!result) return;
-    navigator.clipboard.writeText(`Email: ${result.email}\nPassword: ${result.tempPassword}`);
+    navigator.clipboard.writeText(`Email: ${result.email}`);
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
@@ -201,7 +201,6 @@ function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <div className="rounded-xl p-3 space-y-1.5 font-mono text-sm"
               style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
               <p className="text-white"><span className="text-muted-foreground">Email:</span> {result.email}</p>
-              <p className="text-red-300"><span className="text-muted-foreground">Password:</span> {result.tempPassword}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={copyCredentials}
@@ -1179,7 +1178,7 @@ export default function AdminTab() {
 
   const [resettingTokens, setResettingTokens] = useState<string | null>(null);
   const handleResetTokens = async (u: AdminUser) => {
-    if (!confirm(`Reset ${u.firstName ?? u.email}'s token balance to 600K?`)) return;
+    if (!confirm(`Reset ${u.firstName ?? u.email}'s token balance to 60K?`)) return;
     setResettingTokens(u.id);
     const res = await fetch(api("/admin/users/reset-tokens"), {
       method: "POST", credentials: "include",

@@ -47,7 +47,7 @@ interface ManualPaymentConfig {
   bank: { enabled: boolean; details: string; instructions: string };
 }
 
-type PayMethod = "paypal" | "card" | "bitcoin" | "ecocash" | "ecocash_diaspora" | "bank";
+type PayMethod = "paypal" | "card" | "bitcoin" | "dischub" | "ecocash" | "ecocash_diaspora" | "bank";
 
 declare global {
   interface Window {
@@ -156,13 +156,15 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
   const [manualReference, setManualReference] = useState<string>("");
   const [manualPurchaseId, setManualPurchaseId] = useState<number | null>(null);
   const [userPaymentRef, setUserPaymentRef] = useState<string>("");
+  const [dischubPhone, setDischubPhone] = useState("");
+  const [dischubCurrency, setDischubCurrency] = useState<"USD" | "ZWG">("USD");
   const [refCopied, setRefCopied] = useState(false);
   const [manualSubmitting, setManualSubmitting] = useState(false);
 
   /* ── Card SDK state ── */
   const [sdkInitializing, setSdkInitializing] = useState(false);
   const [cardSessionReady, setCardSessionReady] = useState(false);
-  const [cardFields, setCardFields] = useState<ReturnType<NonNullable<Window["paypal"]>["CardFields"]> | null>(null);
+  const [cardFields, setCardFields] = useState<ReturnType<NonNullable<NonNullable<Window["paypal"]>["CardFields"]>> | null>(null);
   const cardFieldsRef = useRef<typeof cardFields>(null);
   cardFieldsRef.current = cardFields;
 
@@ -227,7 +229,7 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
   useEffect(() => {
     if (selectedPkg !== "custom" || !customTokens) { setCustomPrice(null); return; }
     const t = parseInt(customTokens, 10);
-    if (isNaN(t) || t < 1_000_000) { setCustomPrice(null); return; }
+    if (isNaN(t) || t < 100_000) { setCustomPrice(null); return; }
 
     const timer = setTimeout(async () => {
       setCalcLoading(true);
@@ -437,6 +439,20 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
     setBtcVerifying(false);
   };
 
+  const handleDiscHubCheckout = async () => {
+    if (!selectedPkg || !isAuthenticated) return;
+    setError(null); setProcessing(true);
+    try {
+      const res = await fetch(api("/billing/dischub/create-order"), {
+        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId: selectedPkg, senderPhone: dischubPhone, currency: dischubCurrency }),
+      });
+      const data = await res.json() as { paymentUrl?: string; error?: string };
+      if (!res.ok || !data.paymentUrl) throw new Error(data.error ?? "DiscHub order failed");
+      window.location.href = data.paymentUrl;
+    } catch (err) { setError((err as Error).message); setProcessing(false); }
+  };
+
   /* ── Manual payment: Step 1 — Create reference ── */
   const handleManualCreateReference = async () => {
     if (!selectedPkg || !isAuthenticated) return;
@@ -576,6 +592,7 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
   const isManualMethod = (m: PayMethod) => ["ecocash", "ecocash_diaspora", "bank"].includes(m);
 
   const getManualMethodLabel = (m: PayMethod) => {
+    if (m === "dischub") return "DiscHub";
     if (m === "ecocash") return "EcoCash";
     if (m === "ecocash_diaspora") return "EcoCash Diaspora";
     if (m === "bank") return "Bank Transfer";
@@ -583,6 +600,7 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
   };
 
   const getManualMethodIcon = (m: PayMethod) => {
+    if (m === "dischub") return <Smartphone className="w-4 h-4" />;
     if (m === "ecocash") return <Smartphone className="w-4 h-4" />;
     if (m === "ecocash_diaspora") return <Send className="w-4 h-4" />;
     if (m === "bank") return <Building2 className="w-4 h-4" />;
@@ -590,6 +608,7 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
   };
 
   const getManualMethodColor = (m: PayMethod) => {
+    if (m === "dischub") return { active: "bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/40", ring: "rgba(217,70,239,0.4)" };
     if (m === "ecocash") return { active: "bg-green-500/20 text-green-300 border-green-500/40", ring: "rgba(34,197,94,0.4)" };
     if (m === "ecocash_diaspora") return { active: "bg-teal-500/20 text-teal-300 border-teal-500/40", ring: "rgba(20,184,166,0.4)" };
     if (m === "bank") return { active: "bg-sky-500/20 text-sky-300 border-sky-500/40", ring: "rgba(14,165,233,0.4)" };
@@ -776,18 +795,18 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
                       </label>
                       <div className="relative">
                         <input
-                          type="number" min={1_000_000} step={1_000_000}
+                          type="number" min={100_000} step={100_000}
                           placeholder="e.g. 20000000" value={customTokens}
                           onChange={e => { setCustomTokens(e.target.value); setCustomPrice(null); }}
                           className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-indigo-500/50 transition-colors"
                         />
                         {calcLoading && <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />}
                       </div>
-                      {customTokens && !calcLoading && !customPrice && parseInt(customTokens) >= 1_000_000 && (
+                      {customTokens && !calcLoading && !customPrice && parseInt(customTokens) >= 100_000 && (
                         <p className="text-xs text-muted-foreground/60 animate-pulse">Calculating price…</p>
                       )}
-                      {customTokens && parseInt(customTokens) > 0 && parseInt(customTokens) < 1_000_000 && (
-                        <p className="text-xs text-red-400">Minimum is 1,000,000 tokens (1M)</p>
+                      {customTokens && parseInt(customTokens) > 0 && parseInt(customTokens) < 100_000 && (
+                        <p className="text-xs text-red-400">Minimum is 100,000 tokens (100K)</p>
                       )}
                       {customPrice && customTokens && (
                         <div className="flex items-center justify-between p-2.5 rounded-xl"
@@ -820,7 +839,7 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Payment Method</p>
 
                       {/* Row 1: PayPal, Card, Bitcoin */}
-                      <div className="grid grid-cols-3 gap-2 mb-2">
+                      <div className="grid grid-cols-4 gap-2 mb-2">
                         {/* PayPal */}
                         <button
                           onClick={() => { setPayMethod("paypal"); setError(null); setCardFields(null); setCardSessionReady(false); }}
@@ -1006,6 +1025,31 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
                         </div>
                       )}
                     </>
+                  )}
+
+
+
+                  {selectedPkg && payMethod === "dischub" && (
+                    <div className="space-y-3 p-4 rounded-xl border border-fuchsia-500/30 bg-fuchsia-500/5">
+                      {!isAuthenticated ? (
+                        <div className="text-center space-y-3">
+                          <LogIn className="w-7 h-7 text-fuchsia-400 mx-auto" />
+                          <p className="text-sm font-semibold text-fuchsia-300">Sign in required</p>
+                          <button onClick={onClose} className="px-5 py-2 rounded-lg bg-fuchsia-500/20 border border-fuchsia-500/40 text-fuchsia-300 text-sm font-semibold">Sign In / Sign Up</button>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="text-xs text-muted-foreground text-center">DiscHub supports EcoCash, InnBucks and Omari phone payments. You will be redirected to DiscHub securely.</p>
+                          <input value={dischubPhone} onChange={(e) => setDischubPhone(e.target.value)} placeholder="Sender phone e.g. 0780070488" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white outline-none focus:border-fuchsia-500/50" />
+                          <select value={dischubCurrency} onChange={(e) => setDischubCurrency(e.target.value as "USD" | "ZWG")} className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-white/10 text-sm text-white">
+                            <option value="USD">USD</option><option value="ZWG">ZWG</option>
+                          </select>
+                          <button onClick={handleDiscHubCheckout} disabled={processing || !canCheckout || !dischubPhone.trim()} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-fuchsia-500/20 border border-fuchsia-500/40 text-fuchsia-200 font-bold disabled:opacity-50">
+                            {processing ? <><RefreshCw className="w-4 h-4 animate-spin" /> Creating order…</> : <>Pay {currentUsd} with DiscHub</>}
+                          </button>
+                        </>
+                      )}
+                    </div>
                   )}
 
                   {/* ══ BITCOIN FLOW ══ */}

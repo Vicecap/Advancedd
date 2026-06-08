@@ -1,7 +1,7 @@
 import { Router } from "express";
 const router = Router();
 
-const PDF_API_BASE = "http://80.241.208.95:3057";
+const PDF_API_BASE = (process.env.DOCUMENTS_BASE_URL ?? "https://doc.totalsportss.online").replace(/\/$/, "");
 
 router.get("/study-pdfs", async (req, res) => {
   try {

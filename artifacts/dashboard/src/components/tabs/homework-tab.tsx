@@ -394,7 +394,7 @@ export default function HomeworkTab() {
           question.trim() && `Question: ${question.trim()}`,
         ].filter(Boolean).join("\n\n");
 
-        const res = await fetch(api("/free-ai/discuss"), {
+        const res = await fetch(api("/discuss"), {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

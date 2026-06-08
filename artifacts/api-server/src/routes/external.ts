@@ -1,3 +1,5 @@
+import dns from "node:dns/promises";
+import net from "node:net";
 import { Router, type IRouter } from "express";
 import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 import { Readable } from "node:stream";
@@ -221,7 +223,24 @@ async function convertToPdf(
 // Routes
 // ─────────────────────────────────────────────────────────────────────────────
 
-const EXT_BASE = "http://80.241.208.95:3057";
+const EXT_BASE = (process.env.DOCUMENTS_BASE_URL ?? "https://doc.totalsportss.online").replace(/\/$/, "");
+const ALLOWED_EXTERNAL_HOSTS = new Set((process.env.ALLOWED_EXTERNAL_HOSTS ?? "doc.totalsportss.online").split(",").map(h => h.trim()).filter(Boolean));
+function isPrivateIp(ip: string): boolean {
+  if (ip === "127.0.0.1" || ip === "0.0.0.0" || ip === "::1") return true;
+  if (ip.startsWith("10.") || ip.startsWith("192.168.") || ip.startsWith("169.254.")) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) return true;
+  if (/^(fc|fd|fe80):/i.test(ip)) return true;
+  return false;
+}
+async function assertSafeExternalUrl(raw: string): Promise<URL> {
+  const parsed = new URL(raw);
+  if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") throw new Error("Only HTTPS URLs are allowed");
+  if (ALLOWED_EXTERNAL_HOSTS.size && !ALLOWED_EXTERNAL_HOSTS.has(parsed.hostname)) throw new Error("External host is not allowed");
+  if (["localhost", "metadata.google.internal"].includes(parsed.hostname)) throw new Error("Blocked internal hostname");
+  const addresses = await dns.lookup(parsed.hostname, { all: true });
+  if (addresses.some(a => isPrivateIp(a.address) || net.isIP(parsed.hostname) && isPrivateIp(parsed.hostname))) throw new Error("Blocked private network URL");
+  return parsed;
+}
 
 router.get("/external-solve", async (req, res): Promise<void> => {
   const { source, operation, expression } = req.query as Record<string, string>;
@@ -396,7 +415,8 @@ router.get("/external-pdf", async (req, res): Promise<void> => {
   }
 
   try {
-    const upstream = await fetch(url, {
+    const safeUrl = await assertSafeExternalUrl(url);
+    const upstream = await fetch(safeUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (compatible; DocProxy/1.0; +https://ai.vicecap.site)",
@@ -410,7 +430,11 @@ router.get("/external-pdf", async (req, res): Promise<void> => {
       return;
     }
 
+    const contentLength = Number(upstream.headers.get("content-length") ?? 0);
+    const maxBytes = Number(process.env.EXTERNAL_FETCH_MAX_BYTES ?? 25_000_000);
+    if (contentLength && contentLength > maxBytes) { res.status(413).json({ error: "File too large" }); return; }
     const arrayBuf    = await upstream.arrayBuffer();
+    if (arrayBuf.byteLength > maxBytes) { res.status(413).json({ error: "File too large" }); return; }
     const rawBuffer   = Buffer.from(arrayBuf);
     const contentType = upstream.headers.get("content-type") ?? "";
 

@@ -49,7 +49,7 @@ export default function TokenDepletedModal({ open, nextRefillAt, onBuyTokens, on
               <div>
                 <h2 className="text-xl font-display font-black text-white">Tokens Depleted</h2>
                 <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                  Your weekly 600K token allowance has been used up. Buy more tokens to continue using
+                  Your weekly 60K token allowance has been used up. Buy more tokens to continue using
                   <span className="text-amber-400 font-medium"> deep thinking fast models</span> and PDF reading.
                 </p>
               </div>
@@ -91,7 +91,7 @@ export default function TokenDepletedModal({ open, nextRefillAt, onBuyTokens, on
               </div>
 
               <p className="text-[10px] text-muted-foreground/50">
-                600K free tokens reset every 7 days · Free models always available
+                60K free tokens reset every 7 days · Free models always available
               </p>
             </div>
           </motion.div>

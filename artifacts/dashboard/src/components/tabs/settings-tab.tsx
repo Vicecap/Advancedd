@@ -416,7 +416,7 @@ export default function SettingsTab({ onOpenShop: _onOpenShopProp }: { onOpenSho
                   <div>
                     <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wide font-semibold">Current Token Balance</p>
                     <p className="text-3xl font-display font-black text-emerald-300">{tokenBalance != null ? tokenBalance >= 1_000_000 ? `${(tokenBalance / 1_000_000).toFixed(2)}M` : `${(tokenBalance / 1_000).toFixed(0)}K` : "—"}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">Resets weekly to 600K (purchased tokens carry over)</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Resets weekly to 60K (purchased tokens carry over)</p>
                   </div>
                   <button onClick={onOpenShop} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all" style={{ background: "rgba(52,211,153,0.25)", border: "1px solid rgba(52,211,153,0.4)" }}>
                     <Coins className="w-4 h-4" /> Buy More Tokens

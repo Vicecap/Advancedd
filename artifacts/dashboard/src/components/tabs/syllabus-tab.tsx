@@ -303,7 +303,7 @@ export default function SyllabusTab() {
 
     setError("");
 
-    fetch(`/api/external-syllabus?page=${page}&limit=${LIMIT}`)
+    fetch(`/api/v1/documents?type=past_paper&page=${page}&limit=${LIMIT}`)
       .then((r) => r.json())
       .then((res) => {
         const newItems = parseResponse(res);
@@ -445,7 +445,7 @@ export default function SyllabusTab() {
               {levels.map((l) => (
                 <button
                   key={l}
-                  onClick={() => setActiveLevel(l)}
+                  onClick={() => setActiveLevel(l ?? "")}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-semibold whitespace-nowrap transition-all shrink-0 border"
                   style={
                     activeLevel === l

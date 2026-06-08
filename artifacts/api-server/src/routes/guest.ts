@@ -2,8 +2,11 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { anonymousTokensTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
+import { getGuestId } from "../lib/tokens";
+import { redisRateLimit } from "../lib/rate-limiter";
 
 const router = Router();
+const guestLimit = redisRateLimit({ windowSecs: 60, max: 30, keyPrefix: "rl:guest", message: "Too many guest token requests." });
 
 const WEEKLY_ALLOWANCE = 20_000;
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -36,11 +39,8 @@ async function getOrCreateRecord(deviceId: string) {
   return existing;
 }
 
-router.get("/guest/balance", async (req, res) => {
-  const deviceId = req.query["deviceId"] as string | undefined;
-  if (!deviceId || deviceId.length < 8) {
-    return res.status(400).json({ error: "Invalid deviceId" });
-  }
+router.get("/guest/balance", guestLimit, async (req, res) => {
+  const deviceId = getGuestId(req);
   try {
     const record = await getOrCreateRecord(deviceId);
     const resetAt = record.lastRefillAt.getTime() + ONE_WEEK_MS;
@@ -50,11 +50,9 @@ router.get("/guest/balance", async (req, res) => {
   }
 });
 
-router.post("/guest/deduct", async (req, res) => {
-  const { deviceId, amount = 10_000 } = req.body as { deviceId?: string; amount?: number };
-  if (!deviceId || deviceId.length < 8) {
-    return res.status(400).json({ error: "Invalid deviceId" });
-  }
+router.post("/guest/deduct", guestLimit, async (req, res) => {
+  const { amount = 10_000 } = req.body as { amount?: number };
+  const deviceId = getGuestId(req);
   if (typeof amount !== "number" || amount <= 0) {
     return res.status(400).json({ error: "Invalid amount" });
   }

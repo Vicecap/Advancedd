@@ -238,7 +238,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
         <div className="mx-4 mb-4 rounded-xl px-3 py-2.5 flex items-center gap-3" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)" }}>
           <BarChart3 className="w-4 h-4 text-indigo-400 shrink-0" />
           <div className="text-[11px] text-muted-foreground leading-tight">
-            <span className="text-white font-semibold">600K</span> weekly AI tokens &middot; <span className="text-white font-semibold">11</span> tools
+            <span className="text-white font-semibold">60K</span> weekly AI tokens &middot; <span className="text-white font-semibold">11</span> tools
           </div>
         </div>
 
@@ -355,7 +355,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
                     <span className={`text-[12px] font-bold ${guestDepleted ? "text-red-300" : "text-violet-300"}`}>{fmt(guestBalance)}</span>
                     <span className="text-[11px] text-muted-foreground">guest tokens</span>
                   </div>
-                  <span className="text-[10px] text-muted-foreground/70">100K/week</span>
+                  <span className="text-[10px] text-muted-foreground/70">20K/week</span>
                 </div>
                 <div className="w-full h-1 rounded-full bg-white/8 overflow-hidden">
                   <div className="h-full rounded-full transition-all duration-700"
@@ -367,7 +367,7 @@ export default function Layout({ children, activeTab, setActiveTab }: LayoutProp
               </div>
 
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Sign in for <span className="text-yellow-400 font-bold">600K tokens/week</span>, save history &amp; unlock all features.
+                Sign in for <span className="text-yellow-400 font-bold">60K tokens/week</span>, save history &amp; unlock all features.
               </p>
               <button
                 onClick={() => setAuthOpen(true)}

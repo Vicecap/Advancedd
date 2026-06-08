@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { db, usersTable, tokenBalancesTable } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 import { createSession, setSessionCookie, type AuthUser } from "../lib/auth";
@@ -7,14 +8,19 @@ import { sendAdminWelcomeEmail } from "../lib/email";
 
 const router: IRouter = Router();
 
-function getAdminToken(): string {
-  return process.env.ADMIN_INIT_TOKEN ?? "zimsolve-admin-init";
+function getAdminToken(): string | null {
+  return process.env.ADMIN_INIT_TOKEN || null;
+}
+function safeTokenEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
 }
 
 /* ── GET /admin/setup/status — check if any admin exists ── */
 router.get("/admin/setup/status", async (_req: Request, res: Response): Promise<void> => {
   const [{ total }] = await db.select({ total: count() }).from(usersTable).where(eq(usersTable.isAdmin, true));
-  res.json({ hasAdmin: total > 0, tokenRequired: getAdminToken() !== "zimsolve-admin-init" });
+  res.json({ hasAdmin: total > 0, tokenRequired: !!getAdminToken(), setupEnabled: !!getAdminToken() });
 });
 
 /* ── POST /admin/setup — create first admin (only if no admins exist) ── */
@@ -23,7 +29,8 @@ router.post("/admin/setup", async (req: Request, res: Response): Promise<void> =
     email?: string; password?: string; firstName?: string; lastName?: string; setupToken?: string;
   };
 
-  if (setupToken !== getAdminToken()) {
+  const configuredToken = getAdminToken();
+  if (!configuredToken || !setupToken || !safeTokenEqual(setupToken, configuredToken)) {
     res.status(403).json({ error: "Invalid setup token." });
     return;
   }
@@ -117,7 +124,7 @@ router.post("/admin/promote", async (req: Request, res: Response): Promise<void>
 /* ── POST /admin/users/:id/premium — toggle premium status ── */
 router.post("/admin/users/:id/premium", async (req: Request, res: Response): Promise<void> => {
   if (!requireAdmin(req, res)) return;
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { premium } = req.body as { premium?: boolean };
   if (typeof premium !== "boolean") { res.status(400).json({ error: "premium (boolean) is required." }); return; }
 
@@ -141,9 +148,7 @@ router.post("/admin/demote", async (req: Request, res: Response): Promise<void> 
 
 /* ── POST /admin/users/reset-tokens — reset a user's token balance to weekly allowance ── */
 router.post("/admin/users/reset-tokens", async (req: Request, res: Response): Promise<void> => {
-  const initToken = req.headers["x-admin-token"] as string | undefined;
-  const validInitToken = initToken && initToken === getAdminToken();
-  if (!validInitToken && !requireAdmin(req, res)) return;
+  if (!requireAdmin(req, res)) return;
 
   const { userId } = req.body as { userId?: string };
   if (!userId) { res.status(400).json({ error: "userId required." }); return; }
@@ -151,7 +156,7 @@ router.post("/admin/users/reset-tokens", async (req: Request, res: Response): Pr
   const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!target) { res.status(404).json({ error: "User not found." }); return; }
 
-  const WEEKLY = 600_000;
+  const WEEKLY = 60_000;
   await db.execute(
     sql`INSERT INTO token_balances (user_id, balance, total_used, last_refill_at)
         VALUES (${userId}, ${WEEKLY}, 0, NOW())
@@ -175,8 +180,8 @@ router.post("/admin/create-admin", async (req: Request, res: Response): Promise<
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, normalEmail));
   if (existing?.isAdmin) { res.status(409).json({ error: "This user is already an admin." }); return; }
 
-  const tempPassword = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6).toUpperCase() + "!1";
-  const passwordHash = await bcrypt.hash(tempPassword, 12);
+  const temporaryPassword = crypto.randomBytes(12).toString("base64url") + "!1";
+  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
   let userId: string;
   if (existing) {
@@ -196,8 +201,8 @@ router.post("/admin/create-admin", async (req: Request, res: Response): Promise<
     await db.insert(tokenBalancesTable).values({ userId }).onConflictDoNothing();
   }
 
-  await sendAdminWelcomeEmail(normalEmail, tempPassword);
-  res.status(201).json({ ok: true, email: normalEmail, tempPassword });
+  await sendAdminWelcomeEmail(normalEmail, temporaryPassword);
+  res.status(201).json({ ok: true, email: normalEmail });
 });
 
 export default router;

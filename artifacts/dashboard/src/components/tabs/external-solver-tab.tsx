@@ -433,7 +433,7 @@ export default function ExternalSolverTab() {
       topic: "explain result",
     });
 
-    const streamBase = isFreeAiModel(aiModel) ? "/api/free-ai/solve-stream" : "/api/solve-stream";
+    const streamBase = isFreeAiModel(aiModel) ? "/api/solve-stream" : "/api/solve-stream";
     const es = new EventSource(`${streamBase}?${params.toString()}`);
     esRef.current = es;
 

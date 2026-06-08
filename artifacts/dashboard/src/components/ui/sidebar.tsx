@@ -1,4 +1,11 @@
 "use client"
+function secureRandom(): number {
+  const a = new Uint32Array(1);
+  globalThis.crypto?.getRandomValues?.(a);
+  return a[0] / 0xffffffff;
+}
+function randomInt(max: number): number { return Math.floor(secureRandom() * max); }
+
 
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
@@ -609,7 +616,7 @@ function SidebarMenuSkeleton({
 }) {
   // Random width between 50 to 90%.
   const width = React.useMemo(() => {
-    return `${Math.floor(Math.random() * 40) + 50}%`
+    return `${randomInt(40) + 50}%`
   }, [])
 
   return (
