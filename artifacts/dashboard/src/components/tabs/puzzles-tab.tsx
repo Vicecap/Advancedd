@@ -2,6 +2,13 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Puzzle, RefreshCw, Trophy, Clock, Star, CheckCircle2, XCircle, Lightbulb, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+function secureRandom(): number {
+  const a = new Uint32Array(1);
+  globalThis.crypto?.getRandomValues?.(a);
+  return a[0] / 0xffffffff;
+}
+function randomInt(max: number): number { return Math.floor(secureRandom() * max); }
+
 
 const BASE_URL_PUZ = import.meta.env.BASE_URL ?? "/";
 function apiPuz(p: string) { return `${BASE_URL_PUZ}api${p}`; }
@@ -103,13 +110,13 @@ const MATH_TRIVIA: { q: string; options: string[]; answer: number; explanation: 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
 
-function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
+function pick<T>(arr: T[]): T { return arr[randomInt(arr.length)]; }
 
 function useTimer(running: boolean) {
   const [seconds, setSeconds] = useState(0);
@@ -133,9 +140,9 @@ function buildGrid(words: string[], gridSize: number, dirs: number[][]): { grid:
     let attempts = 0;
     while (attempts < 150) {
       attempts++;
-      const [dr, dc] = dirs[Math.floor(Math.random() * dirs.length)];
-      const row = Math.floor(Math.random() * gridSize);
-      const col = Math.floor(Math.random() * gridSize);
+      const [dr, dc] = dirs[randomInt(dirs.length)];
+      const row = randomInt(gridSize);
+      const col = randomInt(gridSize);
       const cells: [number, number][] = [];
       let ok = true;
       for (let i = 0; i < word.length; i++) {
@@ -153,7 +160,7 @@ function buildGrid(words: string[], gridSize: number, dirs: number[][]): { grid:
   }
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   for (let r = 0; r < gridSize; r++) for (let c = 0; c < gridSize; c++) {
-    if (!grid[r][c]) grid[r][c] = letters[Math.floor(Math.random() * 26)];
+    if (!grid[r][c]) grid[r][c] = letters[randomInt(26)];
   }
   return { grid, placed };
 }
@@ -407,7 +414,7 @@ function WordSearch() {
 // ── Game 2: Complete the Word (Fill in the Blanks) ──────────────────────────
 
 function CompleteWord() {
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * FILL_PUZZLES.length));
+  const [idx, setIdx] = useState(() => randomInt(FILL_PUZZLES.length));
   const puzzle = FILL_PUZZLES[idx];
   const [inputs, setInputs] = useState<string[]>(() => Array(puzzle.word.length).fill(""));
   const [submitted, setSubmitted] = useState(false);
@@ -514,7 +521,7 @@ function CompleteWord() {
 // ── Game 3: Anagram Solver ───────────────────────────────────────────────────
 
 function AnagramGame() {
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * ANAGRAM_PUZZLES.length));
+  const [idx, setIdx] = useState(() => randomInt(ANAGRAM_PUZZLES.length));
   const puzzle = ANAGRAM_PUZZLES[idx];
   const [shuffled, setShuffled] = useState(() => shuffle(puzzle.word.split("")));
   const [answer, setAnswer] = useState("");
@@ -833,7 +840,7 @@ const SEQUENCES: { nums: (number | "?")[]; answer: number; rule: string; hint: s
 ];
 
 function NumberSequence() {
-  const [idx, setIdx] = useState(() => Math.floor(Math.random() * SEQUENCES.length));
+  const [idx, setIdx] = useState(() => randomInt(SEQUENCES.length));
   const [guess, setGuess] = useState("");
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
   const [showHint, setShowHint] = useState(false);
@@ -928,7 +935,7 @@ function NumberSequence() {
 type FlashOp = "+" | "−" | "×" | "÷";
 
 function genFlash(op: FlashOp): { q: string; a: number } {
-  const r = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const r = (min: number, max: number) => randomInt(max - min + 1) + min;
   if (op === "+") { const a = r(10,99), b = r(10,99); return { q: `${a} + ${b}`, a: a+b }; }
   if (op === "−") { const a = r(20,99), b = r(10, a); return { q: `${a} − ${b}`, a: a-b }; }
   if (op === "×") { const a = r(2,12), b = r(2,12); return { q: `${a} × ${b}`, a: a*b }; }

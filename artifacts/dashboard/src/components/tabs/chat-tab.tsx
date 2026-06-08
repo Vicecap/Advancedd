@@ -30,7 +30,7 @@ export default function ChatTab({ previousSolution }: ChatTabProps) {
 
   const isFreeModel = (id: string) => allModels.find(m => m.id === id)?.free ?? false;
 
-  const endpoint = isFreeModel(model) ? "/api/free-ai/discuss" : "/api/discuss";
+  const endpoint = isFreeModel(model) ? "/api/discuss" : "/api/discuss";
   const { mutate: discuss, isPending, data, error } = useDiscuss(endpoint);
 
   useEffect(() => {

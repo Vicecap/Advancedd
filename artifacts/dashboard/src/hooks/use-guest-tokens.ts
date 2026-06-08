@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 const STORAGE_KEY = "guest_tokens_v2";
 const DEVICE_ID_KEY = "guest_device_id";
-const WEEKLY_ALLOWANCE = 100_000;
+const WEEKLY_ALLOWANCE = 20_000;
 const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const BASE_URL = import.meta.env.BASE_URL ?? "/";

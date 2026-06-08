@@ -23,7 +23,10 @@ function getOrigin(req: Request): string {
 }
 
 function generateCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  return String(crypto.randomInt(100000, 1000000));
+}
+function hashCode(code: string): string {
+  return crypto.createHash("sha256").update(code).digest("hex");
 }
 
 router.get("/auth/user", async (req: Request, res: Response): Promise<void> => {
@@ -65,7 +68,7 @@ router.post("/auth/register", async (req: Request, res: Response): Promise<void>
 
   if (existing && !existing.emailVerified) {
     await db.update(usersTable)
-      .set({ passwordHash, firstName: firstName?.trim() ?? null, lastName: lastName?.trim() ?? null, verificationCode: code, verificationCodeExpiry: expiry })
+      .set({ passwordHash, firstName: firstName?.trim() ?? null, lastName: lastName?.trim() ?? null, emailVerifyHash: hashCode(code), emailVerifyHashExpiry: expiry })
       .where(eq(usersTable.email, normalEmail));
   } else {
     const [newUser] = await db.insert(usersTable).values({
@@ -75,10 +78,10 @@ router.post("/auth/register", async (req: Request, res: Response): Promise<void>
       passwordHash,
       authProvider: "email",
       emailVerified: false,
-      verificationCode: code,
-      verificationCodeExpiry: expiry,
+      emailVerifyHash: hashCode(code),
+      emailVerifyHashExpiry: expiry,
     }).returning({ id: usersTable.id });
-    await db.insert(tokenBalancesTable).values({ userId: newUser.id, balance: 600_000 }).onConflictDoNothing();
+    await db.insert(tokenBalancesTable).values({ userId: newUser.id, balance: 60_000 }).onConflictDoNothing();
   }
 
   const emailSent = await sendVerificationEmail(normalEmail, code);
@@ -86,7 +89,6 @@ router.post("/auth/register", async (req: Request, res: Response): Promise<void>
   res.status(202).json({
     needsVerification: true,
     email: normalEmail,
-    ...(showCode ? { devCode: code } : {}),
   });
 });
 
@@ -109,17 +111,17 @@ router.post("/auth/verify-email", async (req: Request, res: Response): Promise<v
     res.status(400).json({ error: "Email is already verified." });
     return;
   }
-  if (!user.verificationCode || user.verificationCode !== code.trim()) {
+  if (!user.emailVerifyHash || user.emailVerifyHash !== hashCode(code.trim())) {
     res.status(400).json({ error: "Incorrect verification code." });
     return;
   }
-  if (!user.verificationCodeExpiry || user.verificationCodeExpiry < new Date()) {
+  if (!user.emailVerifyHashExpiry || user.emailVerifyHashExpiry < new Date()) {
     res.status(400).json({ error: "Verification code has expired. Please register again." });
     return;
   }
 
   await db.update(usersTable)
-    .set({ emailVerified: true, verificationCode: null, verificationCodeExpiry: null })
+    .set({ emailVerified: true, emailVerifyHash: null, emailVerifyHashExpiry: null })
     .where(eq(usersTable.email, normalEmail));
 
   // Award referral bonus to the referrer
@@ -182,8 +184,8 @@ router.post("/auth/resend-verification", async (req: Request, res: Response): Pr
   const expiry = new Date(Date.now() + 15 * 60 * 1000);
   await db.update(usersTable)
     .set({
-      verificationCode: code,
-      verificationCodeExpiry: expiry,
+      emailVerifyHash: hashCode(code),
+      emailVerifyHashExpiry: expiry,
       verificationResendCount: resendCount + 1,
       verificationResendLastAt: new Date(),
     })
@@ -191,7 +193,7 @@ router.post("/auth/resend-verification", async (req: Request, res: Response): Pr
 
   await sendVerificationEmail(normalEmail, code);
   const emailConfigured2 = !!(process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS);
-  res.json({ ok: true, attemptsLeft: MAX_RESENDS - (resendCount + 1), ...(!emailConfigured2 ? { devCode: code } : {}) });
+  res.json({ ok: true, attemptsLeft: MAX_RESENDS - (resendCount + 1) });
 });
 
 /* ── POST /auth/login ── */
@@ -222,11 +224,11 @@ router.post("/auth/login", async (req: Request, res: Response): Promise<void> =>
     const code = generateCode();
     const expiry = new Date(Date.now() + 15 * 60 * 1000);
     await db.update(usersTable)
-      .set({ verificationCode: code, verificationCodeExpiry: expiry })
+      .set({ emailVerifyHash: hashCode(code), emailVerifyHashExpiry: expiry })
       .where(eq(usersTable.email, normalEmail));
     await sendVerificationEmail(normalEmail, code);
     const emailConfigured3 = !!(process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS);
-    res.status(403).json({ error: "Email not verified. A new code has been sent.", needsVerification: true, email: normalEmail, ...(!emailConfigured3 ? { devCode: code } : {}) });
+    res.status(403).json({ error: "Email not verified. A new code has been sent.", needsVerification: true, email: normalEmail });
     return;
   }
 
@@ -292,7 +294,7 @@ router.get("/auth/google", (req: Request, res: Response): void => {
   url.searchParams.set("state", state);
   url.searchParams.set("prompt", "select_account");
 
-  res.cookie("google_state", state, { httpOnly: true, maxAge: 600_000, sameSite: "lax", secure: false, path: "/" });
+  res.cookie("google_state", state, { httpOnly: true, maxAge: 10 * 60 * 1000, sameSite: "lax", secure: false, path: "/" });
   res.redirect(url.toString());
 });
 
@@ -372,11 +374,9 @@ router.post("/auth/forgot-password", async (req: Request, res: Response): Promis
     }
     const code = generateCode();
     const expiry = new Date(Date.now() + 15 * 60 * 1000);
-    await db.update(usersTable).set({ resetCode: code, resetCodeExpiry: expiry }).where(eq(usersTable.email, normalEmail));
-    let devCode: string | undefined;
-    try { await sendVerificationEmail(normalEmail, code); }
-    catch { devCode = code; }
-    res.json({ ok: true, devCode, message: "Reset code sent." });
+    await db.update(usersTable).set({ passwordResetHash: hashCode(code), passwordResetHashExpiry: expiry }).where(eq(usersTable.email, normalEmail));
+    await sendVerificationEmail(normalEmail, code);
+    res.json({ ok: true, message: "Reset code sent." });
   } catch { res.status(500).json({ error: "Failed to send reset code." }); }
 });
 
@@ -390,15 +390,15 @@ router.post("/auth/reset-password", async (req: Request, res: Response): Promise
   const normalEmail = email.trim().toLowerCase();
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.email, normalEmail));
-    if (!user || !user.resetCode || !user.resetCodeExpiry) {
+    if (!user || !user.passwordResetHash || !user.passwordResetHashExpiry) {
       res.status(400).json({ error: "No reset code found. Please request a new one." }); return;
     }
-    if (user.resetCode !== code.trim()) { res.status(400).json({ error: "Incorrect reset code." }); return; }
-    if (new Date(user.resetCodeExpiry) < new Date()) {
+    if (user.passwordResetHash !== hashCode(code.trim())) { res.status(400).json({ error: "Incorrect reset code." }); return; }
+    if (new Date(user.passwordResetHashExpiry) < new Date()) {
       res.status(400).json({ error: "Reset code has expired. Please request a new one." }); return;
     }
     const passwordHash = await bcrypt.hash(password, 12);
-    await db.update(usersTable).set({ passwordHash, resetCode: null, resetCodeExpiry: null }).where(eq(usersTable.email, normalEmail));
+    await db.update(usersTable).set({ passwordHash, passwordResetHash: null, passwordResetHashExpiry: null }).where(eq(usersTable.email, normalEmail));
     res.json({ ok: true });
   } catch { res.status(500).json({ error: "Failed to reset password." }); }
 });

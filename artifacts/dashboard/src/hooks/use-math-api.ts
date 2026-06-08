@@ -37,9 +37,9 @@ export function useAIModels() {
 
 export function useFreeAIModels() {
   return useQuery({
-    queryKey: ["/api/free-ai/ais"],
+    queryKey: ["/api/ais"],
     queryFn: async () => {
-      const res = await fetch("/api/free-ai/ais", { credentials: "include" });
+      const res = await fetch("/api/ais", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch free AI models");
       return res.json() as Promise<{ models: AIModel[] }>;
     },

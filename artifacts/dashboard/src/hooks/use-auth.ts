@@ -7,6 +7,7 @@ export interface AuthUser {
   lastName: string | null;
   profileImageUrl: string | null;
   authProvider: string;
+  isPremium?: boolean;
 }
 
 export interface TokenInfo {
@@ -16,7 +17,7 @@ export interface TokenInfo {
   weeklyAllowance: number;
 }
 
-const WEEKLY_ALLOWANCE = 600_000;
+const WEEKLY_ALLOWANCE = 60_000;
 
 interface AuthState {
   user: AuthUser | null;

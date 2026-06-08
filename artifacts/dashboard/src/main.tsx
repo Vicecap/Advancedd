@@ -1,6 +1,9 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { installCsrfFetch } from "./lib/csrf-fetch";
+
+installCsrfFetch();
 
 const BASE = import.meta.env.BASE_URL ?? "/";
 

@@ -13,6 +13,13 @@ import {
   fetchOTDBQuestions, fetchTriviaAPIQuestions,
   useQuizCategories, TRIVIA_API_CATEGORIES, type NormalisedQuestion,
 } from "@/hooks/use-quiz-api";
+function secureRandom(): number {
+  const a = new Uint32Array(1);
+  globalThis.crypto?.getRandomValues?.(a);
+  return a[0] / 0xffffffff;
+}
+function randomInt(max: number): number { return Math.floor(secureRandom() * max); }
+
 
 const BASE_URL = import.meta.env.BASE_URL ?? "/";
 function api(path: string) { return `${BASE_URL}api${path}`; }
@@ -29,7 +36,7 @@ interface ExamConfig {
 interface AnswerRecord { choice: string | null; correct: boolean; }
 
 function genUUID(): string {
-  return crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return crypto.randomUUID ? crypto.randomUUID() : secureRandom().toString(36).slice(2) + Date.now().toString(36);
 }
 
 function getPlayer(): PlayerProfile {
@@ -164,11 +171,11 @@ export default function QuizTab() {
         qs = await fetchTriviaAPIQuestions(config.categoryId, config.difficulty, config.size + 5);
       }
       if (!qs.length) throw new Error("No questions returned. Try different settings.");
-      const shuffled = qs.sort(() => Math.random() - 0.5).slice(0, config.size);
+      const shuffled = qs.sort(() => secureRandom() - 0.5).slice(0, config.size);
       const firstQ = shuffled[0];
       const firstChoices = firstQ.type === "boolean"
         ? ["True", "False"]
-        : [...firstQ.incorrect_answers, firstQ.correct_answer].sort(() => Math.random() - 0.5);
+        : [...firstQ.incorrect_answers, firstQ.correct_answer].sort(() => secureRandom() - 0.5);
 
       setQuestions(shuffled);
       setChoices(firstChoices.map(decodeHTMLEntities));
@@ -197,7 +204,7 @@ export default function QuizTab() {
         const nextQ = questions[current + 1];
         const nextChoices = nextQ.type === "boolean"
           ? ["True", "False"]
-          : [...nextQ.incorrect_answers, nextQ.correct_answer].sort(() => Math.random() - 0.5);
+          : [...nextQ.incorrect_answers, nextQ.correct_answer].sort(() => secureRandom() - 0.5);
         setChoices(nextChoices.map(decodeHTMLEntities));
         setCurrent(c => c + 1);
         setSelected(null);
@@ -218,7 +225,7 @@ export default function QuizTab() {
       const nextQ = questions[current + 1];
       const nextChoices = nextQ.type === "boolean"
         ? ["True", "False"]
-        : [...nextQ.incorrect_answers, nextQ.correct_answer].sort(() => Math.random() - 0.5);
+        : [...nextQ.incorrect_answers, nextQ.correct_answer].sort(() => secureRandom() - 0.5);
       setChoices(nextChoices.map(decodeHTMLEntities));
       setCurrent(c => c + 1); setSelected(null);
       startTimer(getTimePerQ(examConfig?.difficulty ?? "medium"));
@@ -282,10 +289,10 @@ export default function QuizTab() {
         qs = await fetchTriviaAPIQuestions(randTriviaCat, randDifficulty, 15);
       }
       if (!qs.length) throw new Error("No questions returned. Try different settings.");
-      const q = qs[Math.floor(Math.random() * qs.length)];
+      const q = qs[randomInt(qs.length)];
       const c = q.type === "boolean"
         ? ["True", "False"]
-        : [...q.incorrect_answers, q.correct_answer].sort(() => Math.random() - 0.5);
+        : [...q.incorrect_answers, q.correct_answer].sort(() => secureRandom() - 0.5);
       setRandQuestion(q);
       setRandChoices(c.map(decodeHTMLEntities));
     } catch (e) { setRandError((e as Error).message); }

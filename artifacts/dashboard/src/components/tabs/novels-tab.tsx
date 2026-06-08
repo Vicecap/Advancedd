@@ -970,8 +970,8 @@ function BooksLibrary() {
     seenTitles.current = new Set();
 
     Promise.allSettled([
-      fetch("/api/external-books", { credentials: "include" }).then(r => r.json()) as Promise<ExtBook[]>,
-      fetch("/api/external-books-stream?page=1", { credentials: "include" })
+      fetch("/api/v1/documents", { credentials: "include" }).then(r => r.json()) as Promise<ExtBook[]>,
+      fetch("/api/v1/documents?page=1", { credentials: "include" })
         .then(r => r.json()) as Promise<{ page: number; books: ExtBook[]; hasMore: boolean }>,
     ]).then(([mainResult, streamResult]) => {
       const main: ExtBook[] = mainResult.status === "fulfilled" && Array.isArray(mainResult.value) ? mainResult.value : [];
@@ -991,7 +991,7 @@ function BooksLibrary() {
     setLoadingMore(true);
     try {
       const nextPage = streamPage + 1;
-      const r = await fetch(`/api/external-books-stream?page=${nextPage}`, { credentials: "include" });
+      const r = await fetch(`/api/v1/documents?page=${nextPage}`, { credentials: "include" });
       const data = await r.json() as { page: number; books: ExtBook[]; hasMore: boolean };
       if (data.books?.length) {
         setBooks(prev => mergeInto(prev, data.books));

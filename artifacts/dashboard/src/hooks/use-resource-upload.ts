@@ -26,7 +26,7 @@ export function useResourceUpload() {
     setProgress({ stage: "requesting", percent: 0, error: null });
 
     try {
-      const urlRes = await fetch("/api/resources/upload-url", {
+      const urlRes = await fetch("/api/v1/documents/upload-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -68,7 +68,7 @@ export function useResourceUpload() {
 
       setProgress({ stage: "saving", percent: 92, error: null });
 
-      const saveRes = await fetch("/api/resources", {
+      const saveRes = await fetch("/api/v1/documents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

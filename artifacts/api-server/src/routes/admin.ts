@@ -1,20 +1,29 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { db, usersTable, tokenBalancesTable } from "@workspace/db";
-import { eq, count, sql } from "drizzle-orm";
+import { eq, count, sql, and, inArray, isNotNull } from "drizzle-orm";
 import { createSession, setSessionCookie, type AuthUser } from "../lib/auth";
-import { sendAdminWelcomeEmail } from "../lib/email";
+import { redisRateLimit } from "../lib/rate-limiter";
+import { logSecurityEvent } from "../lib/security";
+import { sendAdminWelcomeEmail, sendAdminBroadcastEmail } from "../lib/email";
 
 const router: IRouter = Router();
+const adminEmailLimit = redisRateLimit({ windowSecs: 3600, max: 5, keyPrefix: "rl:admin:email", message: "Too many admin email sends." });
 
-function getAdminToken(): string {
-  return process.env.ADMIN_INIT_TOKEN ?? "zimsolve-admin-init";
+function getAdminToken(): string | null {
+  return process.env.ADMIN_INIT_TOKEN || null;
+}
+function safeTokenEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && crypto.timingSafeEqual(ab, bb);
 }
 
 /* ── GET /admin/setup/status — check if any admin exists ── */
 router.get("/admin/setup/status", async (_req: Request, res: Response): Promise<void> => {
   const [{ total }] = await db.select({ total: count() }).from(usersTable).where(eq(usersTable.isAdmin, true));
-  res.json({ hasAdmin: total > 0, tokenRequired: getAdminToken() !== "zimsolve-admin-init" });
+  res.json({ hasAdmin: total > 0, tokenRequired: !!getAdminToken(), setupEnabled: !!getAdminToken() });
 });
 
 /* ── POST /admin/setup — create first admin (only if no admins exist) ── */
@@ -23,7 +32,8 @@ router.post("/admin/setup", async (req: Request, res: Response): Promise<void> =
     email?: string; password?: string; firstName?: string; lastName?: string; setupToken?: string;
   };
 
-  if (setupToken !== getAdminToken()) {
+  const configuredToken = getAdminToken();
+  if (!configuredToken || !setupToken || !safeTokenEqual(setupToken, configuredToken)) {
     res.status(403).json({ error: "Invalid setup token." });
     return;
   }
@@ -117,7 +127,7 @@ router.post("/admin/promote", async (req: Request, res: Response): Promise<void>
 /* ── POST /admin/users/:id/premium — toggle premium status ── */
 router.post("/admin/users/:id/premium", async (req: Request, res: Response): Promise<void> => {
   if (!requireAdmin(req, res)) return;
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { premium } = req.body as { premium?: boolean };
   if (typeof premium !== "boolean") { res.status(400).json({ error: "premium (boolean) is required." }); return; }
 
@@ -141,9 +151,7 @@ router.post("/admin/demote", async (req: Request, res: Response): Promise<void> 
 
 /* ── POST /admin/users/reset-tokens — reset a user's token balance to weekly allowance ── */
 router.post("/admin/users/reset-tokens", async (req: Request, res: Response): Promise<void> => {
-  const initToken = req.headers["x-admin-token"] as string | undefined;
-  const validInitToken = initToken && initToken === getAdminToken();
-  if (!validInitToken && !requireAdmin(req, res)) return;
+  if (!requireAdmin(req, res)) return;
 
   const { userId } = req.body as { userId?: string };
   if (!userId) { res.status(400).json({ error: "userId required." }); return; }
@@ -151,7 +159,7 @@ router.post("/admin/users/reset-tokens", async (req: Request, res: Response): Pr
   const [target] = await db.select().from(usersTable).where(eq(usersTable.id, userId));
   if (!target) { res.status(404).json({ error: "User not found." }); return; }
 
-  const WEEKLY = 600_000;
+  const WEEKLY = 60_000;
   await db.execute(
     sql`INSERT INTO token_balances (user_id, balance, total_used, last_refill_at)
         VALUES (${userId}, ${WEEKLY}, 0, NOW())
@@ -175,8 +183,8 @@ router.post("/admin/create-admin", async (req: Request, res: Response): Promise<
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, normalEmail));
   if (existing?.isAdmin) { res.status(409).json({ error: "This user is already an admin." }); return; }
 
-  const tempPassword = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6).toUpperCase() + "!1";
-  const passwordHash = await bcrypt.hash(tempPassword, 12);
+  const temporaryPassword = crypto.randomBytes(12).toString("base64url") + "!1";
+  const passwordHash = await bcrypt.hash(temporaryPassword, 12);
 
   let userId: string;
   if (existing) {
@@ -196,8 +204,42 @@ router.post("/admin/create-admin", async (req: Request, res: Response): Promise<
     await db.insert(tokenBalancesTable).values({ userId }).onConflictDoNothing();
   }
 
-  await sendAdminWelcomeEmail(normalEmail, tempPassword);
-  res.status(201).json({ ok: true, email: normalEmail, tempPassword });
+  await sendAdminWelcomeEmail(normalEmail, temporaryPassword);
+  res.status(201).json({ ok: true, email: normalEmail });
+});
+
+/* ── POST /admin/email-users — send a simple admin email to verified signed-up users ── */
+router.post("/admin/email-users", adminEmailLimit, async (req: Request, res: Response): Promise<void> => {
+  if (!requireAdmin(req, res)) return;
+
+  const mode = req.body?.mode === "all" ? "all" : "selected";
+  const subject = typeof req.body?.subject === "string" ? req.body.subject.trim() : "";
+  const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+  const userIds = Array.isArray(req.body?.userIds) ? req.body.userIds.filter((id: unknown): id is string => typeof id === "string") : [];
+
+  if (!subject || subject.length > 160) { res.status(400).json({ error: "Subject is required and must be 160 characters or less." }); return; }
+  if (!body || body.length > 10_000) { res.status(400).json({ error: "Email body is required and must be 10,000 characters or less." }); return; }
+  if (mode === "selected" && userIds.length === 0) { res.status(400).json({ error: "Select at least one recipient." }); return; }
+
+  const where = mode === "all"
+    ? and(eq(usersTable.emailVerified, true), isNotNull(usersTable.email))
+    : and(eq(usersTable.emailVerified, true), isNotNull(usersTable.email), inArray(usersTable.id, userIds));
+
+  const recipients = await db
+    .select({ id: usersTable.id, email: usersTable.email })
+    .from(usersTable)
+    .where(where);
+
+  let sent = 0;
+  let failed = 0;
+  for (const recipient of recipients) {
+    if (!recipient.email) { failed++; continue; }
+    const ok = await sendAdminBroadcastEmail(recipient.email, subject, body);
+    if (ok) sent++; else failed++;
+  }
+
+  await logSecurityEvent(req, "admin_bulk_email_sent", "medium", req.user?.id, "Admin sent user email", { mode, attempted: recipients.length, sent, failed });
+  res.json({ attempted: recipients.length, sent, failed });
 });
 
 export default router;

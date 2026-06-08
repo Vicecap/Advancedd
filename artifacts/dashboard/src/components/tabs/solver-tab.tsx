@@ -367,7 +367,7 @@ export default function SolverTab({ initialQuestion = "", onSolutionGenerated }:
   }, [aiModels, freeModelsData, isAuthenticated]);
 
   const isFreeModel = (id: string) => allModels.find(m => m.id === id)?.free ?? false;
-  const currentApiBase = isFreeModel(model) ? "/api/free-ai" : "/api";
+  const currentApiBase = isFreeModel(model) ? "/api" : "/api";
 
   useEffect(() => {
     if (initialQuestion) setQuestion(initialQuestion);
@@ -423,7 +423,7 @@ export default function SolverTab({ initialQuestion = "", onSolutionGenerated }:
     setEli5Text(null);
     try {
       const prompt = `Here is a math solution:\n\nQuestion: ${question}\n\nSolution:\n${paragraphs.join("\n")}\n\nFinal Answer: ${answer}\n\nNow explain this entire solution in the simplest possible way — as if you're explaining it to a 10-year-old. Use everyday language, fun analogies, and avoid jargon. Keep it short and friendly.`;
-      const discussEndpoint = isFreeModel(model) ? `${BASE_URL}api/free-ai/discuss` : `${BASE_URL}api/discuss`;
+      const discussEndpoint = isFreeModel(model) ? `${BASE_URL}api/discuss` : `${BASE_URL}api/discuss`;
       const res = await fetch(discussEndpoint, {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ prompt, ai: model || "qwen/qwen3.5-9b" }),
@@ -442,7 +442,7 @@ export default function SolverTab({ initialQuestion = "", onSolutionGenerated }:
     setStepExplainLoading(idx);
     try {
       const prompt = `In the context of solving this math problem: "${question}"\n\nExplain this specific step in very simple terms a student can understand:\n"${stepText}"\n\nBe brief (2-3 sentences), avoid jargon, and explain WHY we do this step.`;
-      const discussEndpoint2 = isFreeModel(model) ? `${BASE_URL}api/free-ai/discuss` : `${BASE_URL}api/discuss`;
+      const discussEndpoint2 = isFreeModel(model) ? `${BASE_URL}api/discuss` : `${BASE_URL}api/discuss`;
       const res = await fetch(discussEndpoint2, {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
         body: JSON.stringify({ prompt, ai: model || "qwen/qwen3.5-9b" }),

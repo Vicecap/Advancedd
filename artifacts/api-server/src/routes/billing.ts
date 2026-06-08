@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { Router, type Request, type Response } from "express";
 import { db, tokenPurchasesTable, tokenBalancesTable } from "@workspace/db";
 import { eq, sql, and, lt, desc } from "drizzle-orm";
@@ -10,14 +11,15 @@ import {
 } from "../lib/email";
 
 const router = Router();
+function paramOne(value: string | string[] | undefined): string { return Array.isArray(value) ? value[0] : (value ?? ""); }
 
 /* ── Token packages ───────────────────────────────────────────────────────── */
 export const PACKAGES = [
-  { id: "5m",  tokens: 5_000_000,  cents: 500,  label: "5M Tokens"  },
-  { id: "10m", tokens: 10_000_000, cents: 800,  label: "10M Tokens" },
-  { id: "15m", tokens: 15_000_000, cents: 1200, label: "15M Tokens" },
-  { id: "30m", tokens: 30_000_000, cents: 2000, label: "30M Tokens" },
-  { id: "50m", tokens: 50_000_000, cents: 3500, label: "50M Tokens" },
+  { id: "pkg_5",  tokens: 500_000,    cents: 500,  label: "500K Tokens"  },
+  { id: "pkg_8",  tokens: 1_000_000,  cents: 800,  label: "1M Tokens" },
+  { id: "pkg_15", tokens: 2_000_000,  cents: 1500, label: "2M Tokens" },
+  { id: "pkg_30", tokens: 5_000_000,  cents: 3000, label: "5M Tokens" },
+  { id: "pkg_50", tokens: 10_000_000, cents: 5000, label: "10M Tokens" },
 ] as const;
 
 /* ── Rate limit presets ───────────────────────────────────────────────────── */
@@ -46,9 +48,9 @@ const looseLimit = redisRateLimit({
 });
 
 /* ── Helper: get user email for receipts ─────────────────────────────────── */
-async function getUserEmail(userId: number): Promise<{ email: string; username: string | null } | null> {
+async function getUserEmail(userId: string): Promise<{ email: string | null; username: string | null } | null> {
   const [user] = await db
-    .select({ email: usersTable.email, username: usersTable.username })
+    .select({ email: usersTable.email, username: usersTable.firstName })
     .from(usersTable)
     .where(eq(usersTable.id, userId));
   return user ?? null;
@@ -129,7 +131,7 @@ async function getPayPalToken(): Promise<string> {
   const secret = process.env.PAYPAL_CLIENT_SECRET;
   if (!clientId || !secret) throw new Error("PayPal not configured");
 
-  const base = process.env.PAYPAL_SANDBOX === "true"
+  const base = (process.env.PAYPAL_ENV ?? "live") === "sandbox"
     ? "https://api-m.sandbox.paypal.com"
     : "https://api-m.paypal.com";
 
@@ -147,13 +149,14 @@ async function getPayPalToken(): Promise<string> {
 }
 
 function appBaseUrl() {
+  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL.replace(/\/$/, "");
   if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, "");
   const domain = process.env.REPLIT_DEV_DOMAIN;
   return domain ? `https://${domain}` : "http://localhost:23183";
 }
 
 function payPalBase() {
-  return process.env.PAYPAL_SANDBOX === "true"
+  return (process.env.PAYPAL_ENV ?? "live") === "sandbox"
     ? "https://api-m.sandbox.paypal.com"
     : "https://api-m.paypal.com";
 }
@@ -162,12 +165,76 @@ function generateReference(prefix: string = "PAY"): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "";
   for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    code += chars[crypto.randomInt(0, chars.length)];
   }
   return `${prefix}-${code}`;
 }
 
 /* ── Input sanitiser — strip non-printable chars ─────────────────────────── */
+
+function normaliseDischubPhone(phone: string): string | null {
+  const compact = phone.replace(/[\s-]/g, "");
+  if (/^\+2637\d{8}$/.test(compact)) return compact;
+  if (/^02637\d{8}$/.test(compact)) return `+${compact.slice(1)}`;
+  if (/^07\d{8}$/.test(compact)) return `+263${compact.slice(1)}`;
+  return null;
+}
+
+function dischubBase(): string {
+  return (process.env.DISCHUB_API_BASE_URL ?? "https://dischub.co.zw").replace(/\/$/, "");
+}
+
+function generateDischubOrderId(): string {
+  return `ZS${Date.now().toString(36).toUpperCase()}${crypto.randomBytes(4).toString("hex").toUpperCase()}`.slice(0, 30);
+}
+
+async function verifyDischubStatus(orderId: string): Promise<{ status: "success" | "pending" | "failed"; metadata: unknown }> {
+  const apiKey = process.env.DISCHUB_API_KEY;
+  const recipient = process.env.DISCHUB_RECIPIENT_EMAIL;
+  if (!apiKey || !recipient) throw new Error("DiscHub is not configured");
+  const response = await fetch(`${dischubBase()}/api/payment/status/3/step/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
+    body: JSON.stringify({ order_id: orderId, recipient }),
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error("DiscHub verification failed");
+  const data = await response.json() as { status?: string; payment_status?: string };
+  const status = String(data.status ?? data.payment_status ?? "pending").toLowerCase();
+  if (!["success", "pending", "failed"].includes(status)) return { status: "pending", metadata: data };
+  return { status: status as "success" | "pending" | "failed", metadata: data };
+}
+
+async function creditDischubPurchase(req: Request, purchase: typeof tokenPurchasesTable.$inferSelect, providerMetadata: unknown): Promise<boolean> {
+  let credited = false;
+  await db.transaction(async (tx) => {
+    const now = new Date();
+    const [claimed] = await tx
+      .update(tokenPurchasesTable)
+      .set({
+        status: "completed",
+        completedAt: now,
+        creditedAt: now,
+        verifiedAt: now,
+        providerMetadata,
+      })
+      .where(and(eq(tokenPurchasesTable.id, purchase.id), sql`${tokenPurchasesTable.creditedAt} IS NULL`))
+      .returning({ id: tokenPurchasesTable.id });
+
+    if (!claimed) return;
+
+    await tx.execute(sql`INSERT INTO token_balances (user_id, balance, total_used, last_refill_at)
+      VALUES (${purchase.userId}, ${purchase.tokensAmount}, 0, NOW())
+      ON CONFLICT (user_id) DO UPDATE SET balance = token_balances.balance + ${purchase.tokensAmount}`);
+    credited = true;
+  });
+
+  if (!credited) {
+    await logSecurityEvent(req, "payment_duplicate_credit", "high", purchase.userId, "Duplicate DiscHub credit attempt", { orderId: purchase.providerOrderId, blocked: true });
+  }
+  return credited;
+}
+
 function sanitiseString(val: unknown, maxLen = 500): string {
   if (typeof val !== "string") return "";
   // eslint-disable-next-line no-control-regex
@@ -249,7 +316,7 @@ router.post(
       tokens = pkg.tokens;
       cents = pkg.cents;
       pkgLabel = pkg.id;
-    } else if (customTokens && customTokens >= 1_000_000) {
+    } else if (customTokens && customTokens >= 100_000) {
       tokens = customTokens;
       cents = calcCustomPrice(tokens);
       pkgLabel = "custom";
@@ -398,7 +465,7 @@ router.get(
         id: tokenPurchasesTable.id,
         userId: tokenPurchasesTable.userId,
         email: usersTable.email,
-        username: usersTable.username,
+        username: usersTable.firstName,
         tokensAmount: tokenPurchasesTable.tokensAmount,
         amountUsdCents: tokenPurchasesTable.amountUsdCents,
         paymentMethod: tokenPurchasesTable.paymentMethod,
@@ -433,7 +500,7 @@ router.post(
   adminLimit,
   requireAdmin,
   async (req: Request, res: Response) => {
-    const purchaseId = parseInt(req.params.id);
+    const purchaseId = parseInt(paramOne(req.params.id));
     if (isNaN(purchaseId) || purchaseId < 1) {
       return res.status(400).json({ error: "Invalid purchase ID" });
     }
@@ -528,7 +595,7 @@ router.post(
   adminLimit,
   requireAdmin,
   async (req: Request, res: Response) => {
-    const purchaseId = parseInt(req.params.id);
+    const purchaseId = parseInt(paramOne(req.params.id));
     if (isNaN(purchaseId) || purchaseId < 1) {
       return res.status(400).json({ error: "Invalid purchase ID" });
     }
@@ -624,15 +691,13 @@ router.post(
   adminLimit,
   requireAdmin,
   async (req: Request, res: Response) => {
-    const userId = Number.isFinite(Number(req.body?.userId))
-      ? Math.floor(Number(req.body.userId))
-      : null;
+    const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : null;
     const tokens = Number.isFinite(Number(req.body?.tokens))
       ? Math.floor(Number(req.body.tokens))
       : null;
     const reason = sanitiseString(req.body?.reason, 500) || "Manual grant by admin";
 
-    if (!userId || userId < 1 || !tokens || tokens < 1) {
+    if (!userId || !tokens || tokens < 1) {
       return res.status(400).json({ error: "userId and positive tokens required" });
     }
 
@@ -701,15 +766,13 @@ router.post(
   adminLimit,
   requireAdmin,
   async (req: Request, res: Response) => {
-    const userId = Number.isFinite(Number(req.body?.userId))
-      ? Math.floor(Number(req.body.userId))
-      : null;
+    const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : null;
     const tokens = Number.isFinite(Number(req.body?.tokens))
       ? Math.floor(Number(req.body.tokens))
       : null;
     const reason = sanitiseString(req.body?.reason, 500) || "Manual grant by admin";
 
-    if (!userId || userId < 1 || !tokens || tokens < 1) {
+    if (!userId || !tokens || tokens < 1) {
       return res.status(400).json({ error: "userId and positive tokens required" });
     }
 
@@ -824,7 +887,7 @@ const BTC_TEST_MODE = process.env.BTC_TEST_MODE === "true";
 
 router.get("/billing/packages", looseLimit, (_req: Request, res: Response): void => {
   const clientId = process.env.PAYPAL_CLIENT_ID;
-  const isSandbox = process.env.PAYPAL_SANDBOX === "true";
+  const isSandbox = (process.env.PAYPAL_ENV ?? "live") === "sandbox";
   res.json({
     packages: PACKAGES.map(p => ({
       id: p.id,
@@ -841,13 +904,108 @@ router.get("/billing/packages", looseLimit, (_req: Request, res: Response): void
 
 router.post("/billing/calc-price", moderateLimit, (req: Request, res: Response): void => {
   const raw = Number(req.body?.tokens);
-  if (!Number.isFinite(raw) || raw < 1_000_000) {
-    res.status(400).json({ error: "Minimum 1 million tokens" });
+  if (!Number.isFinite(raw) || raw < 100_000) {
+    res.status(400).json({ error: "Minimum 100,000 tokens" });
     return;
   }
   const tokens = Math.floor(raw);
   const cents = calcCustomPrice(tokens);
   res.json({ tokens, cents, usd: (cents / 100).toFixed(2) });
+});
+
+router.post("/billing/dischub/create-order", strictPaymentLimit, async (req: Request, res: Response): Promise<void> => {
+  if (!req.isAuthenticated()) {
+    await logSecurityEvent(req, "dischub_unauthenticated_create", "high", null, "Unauthenticated DiscHub order attempt", { blocked: true });
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  const apiKey = process.env.DISCHUB_API_KEY;
+  const recipient = process.env.DISCHUB_RECIPIENT_EMAIL;
+  if (!apiKey || !recipient) {
+    await logSecurityEvent(req, "dischub_missing_config", "high", req.user.id, "DiscHub create attempted without server configuration", { blocked: true });
+    res.status(503).json({ error: "DiscHub is not configured" });
+    return;
+  }
+  const packageId = typeof req.body?.packageId === "string" ? req.body.packageId.replace(/[^a-z0-9_-]/gi, "").slice(0, 20) : "";
+  const pkg = PACKAGES.find((p) => p.id === packageId);
+  if (!pkg) { res.status(400).json({ error: "Invalid package" }); return; }
+  const currency = String(req.body?.currency ?? "USD").toUpperCase();
+  if (!["USD", "ZWG"].includes(currency)) { res.status(400).json({ error: "Unsupported currency" }); return; }
+  const sender = normaliseDischubPhone(String(req.body?.senderPhone ?? req.body?.phone ?? ""));
+  if (!sender) { res.status(400).json({ error: "Invalid sender phone number" }); return; }
+  const amount = pkg.cents / 100;
+  if (!(amount > 0 && amount < 481)) {
+    await logSecurityEvent(req, "dischub_amount_rejected", "high", req.user.id, "DiscHub amount outside allowed range", { packageId, amount, blocked: true });
+    res.status(400).json({ error: "Invalid amount" });
+    return;
+  }
+  let orderId = generateDischubOrderId();
+  for (let i = 0; i < 5; i++) {
+    const existing = await db.select({ id: tokenPurchasesTable.id }).from(tokenPurchasesTable).where(eq(tokenPurchasesTable.providerOrderId, orderId)).limit(1);
+    if (!existing.length) break;
+    orderId = generateDischubOrderId();
+  }
+  const [purchase] = await db.insert(tokenPurchasesTable).values({
+    userId: req.user.id, packageId: pkg.id, tokensAmount: pkg.tokens, amountUsdCents: pkg.cents, provider: "dischub", providerOrderId: orderId, paymentMethod: "dischub", currency, senderPhone: sender, status: "pending", createdAt: new Date(),
+  }).returning();
+  const callbackUrl = process.env.DISCHUB_CALLBACK_URL || `${appBaseUrl()}/api/billing/dischub/callback`;
+  const redirectUrl = process.env.DISCHUB_REDIRECT_URL || `${appBaseUrl()}/payment/status`;
+  try {
+    const response = await fetch(`${dischubBase()}/api/orders/create/`, {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Api-Key": apiKey },
+      body: JSON.stringify({ order_id: orderId, sender, recipient, amount, currency, callback_url: callbackUrl, redirect_url: redirectUrl, mode: process.env.DISCHUB_MODE ?? "test" }),
+      signal: AbortSignal.timeout(15000),
+    });
+    const metadata = await response.json().catch(() => ({}));
+    await db.update(tokenPurchasesTable).set({ providerMetadata: { create: metadata } }).where(eq(tokenPurchasesTable.id, purchase.id));
+    if (!response.ok) {
+      await logSecurityEvent(req, "dischub_create_failed", "high", req.user.id, "DiscHub create API failed", { orderId, status: response.status });
+      res.status(502).json({ error: "DiscHub order creation failed" });
+      return;
+    }
+    res.json({ ok: true, orderId, paymentUrl: `${dischubBase()}/api/make/payment/to/${encodeURIComponent(orderId)}` });
+  } catch {
+    await logSecurityEvent(req, "dischub_create_error", "high", req.user.id, "DiscHub create request failed", { orderId });
+    res.status(502).json({ error: "DiscHub unavailable" });
+  }
+});
+
+async function refreshDischubOrder(req: Request, orderId: string) {
+  const [purchase] = await db.select().from(tokenPurchasesTable).where(eq(tokenPurchasesTable.providerOrderId, orderId));
+  if (!purchase) return null;
+  const verified = await verifyDischubStatus(orderId);
+  if (verified.status === "success") await creditDischubPurchase(req, purchase, verified.metadata);
+  else await db.update(tokenPurchasesTable).set({ status: verified.status, verifiedAt: new Date(), providerMetadata: verified.metadata }).where(eq(tokenPurchasesTable.id, purchase.id));
+  return (await db.select().from(tokenPurchasesTable).where(eq(tokenPurchasesTable.id, purchase.id)))[0];
+}
+
+router.post("/billing/dischub/status", strictPaymentLimit, async (req: Request, res: Response): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Authentication required" }); return; }
+  const orderId = sanitiseString(req.body?.orderId, 30);
+  const [purchase] = await db.select().from(tokenPurchasesTable).where(eq(tokenPurchasesTable.providerOrderId, orderId));
+  if (!purchase || (purchase.userId !== req.user.id && !req.user.isAdmin)) {
+    await logSecurityEvent(req, "dischub_order_forbidden", "high", req.user.id, "DiscHub status ownership check failed", { orderId, blocked: true });
+    res.status(404).json({ error: "Order not found" }); return;
+  }
+  try { const updated = await refreshDischubOrder(req, orderId); res.json({ orderId, status: updated?.status ?? purchase.status, credited: !!updated?.creditedAt }); }
+  catch { await logSecurityEvent(req, "dischub_verify_failed", "high", req.user.id, "DiscHub verification failed", { orderId }); res.status(502).json({ error: "Verification failed" }); }
+});
+
+router.post("/billing/dischub/callback", strictPaymentLimit, async (req: Request, res: Response): Promise<void> => {
+  const orderId = sanitiseString(req.body?.order_id ?? req.body?.orderId, 30);
+  if (!orderId) { await logSecurityEvent(req, "dischub_invalid_callback", "high", null, "DiscHub callback missing order_id", { blocked: true }); res.sendStatus(400); return; }
+  try { await refreshDischubOrder(req, orderId); res.json({ ok: true }); }
+  catch { await logSecurityEvent(req, "dischub_callback_verify_failed", "high", null, "DiscHub callback verification failed", { orderId, blocked: true }); res.sendStatus(400); }
+});
+
+router.get("/billing/dischub/status/:orderId", looseLimit, async (req: Request, res: Response): Promise<void> => {
+  if (!req.isAuthenticated()) { res.status(401).json({ error: "Authentication required" }); return; }
+  const orderId = sanitiseString(req.params.orderId, 30);
+  const [purchase] = await db.select().from(tokenPurchasesTable).where(eq(tokenPurchasesTable.providerOrderId, orderId));
+  if (!purchase || (purchase.userId !== req.user.id && !req.user.isAdmin)) { res.status(404).json({ error: "Order not found" }); return; }
+  let row = purchase;
+  if (purchase.status === "pending") { try { row = await refreshDischubOrder(req, orderId) ?? purchase; } catch { /* keep local status */ } }
+  res.json({ orderId, status: row.status, packageId: row.packageId, tokenAmount: row.tokensAmount, amount: row.amountUsdCents / 100, currency: row.currency, creditedAt: row.creditedAt, verifiedAt: row.verifiedAt });
 });
 
 router.post(
@@ -885,7 +1043,7 @@ router.post(
       tokens = pkg.tokens;
       cents = pkg.cents;
       pkgLabel = pkg.id;
-    } else if (customTokens && customTokens >= 1_000_000) {
+    } else if (customTokens && customTokens >= 100_000) {
       tokens = customTokens;
       cents = calcCustomPrice(tokens);
       pkgLabel = "custom";
@@ -1342,7 +1500,7 @@ router.post(
       const pkg = PACKAGES.find(p => p.id === packageId);
       if (!pkg) { res.status(400).json({ error: "Invalid package" }); return; }
       tokens = pkg.tokens; cents = pkg.cents; pkgLabel = pkg.id;
-    } else if (customTokens && customTokens >= 1_000_000) {
+    } else if (customTokens && customTokens >= 100_000) {
       tokens = customTokens;
       cents = calcCustomPrice(tokens);
       pkgLabel = "custom";

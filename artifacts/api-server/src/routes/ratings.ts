@@ -268,12 +268,13 @@ router.get("/admin/token-stats", async (req, res): Promise<void> => {
   );
 
   // Overall totals
-  const [totals] = await db.execute(
+  const totalsResult = await db.execute(
     sql`SELECT COUNT(*) as total_activities,
                COALESCE(SUM(xp_earned), 0) as total_xp,
                COALESCE(SUM(tokens_used), 0) as total_tokens
         FROM activity_log`
   );
+  const totals = totalsResult.rows[0];
 
   // Most played games (from activity_log where type = 'game_played')
   const games = await db.execute(
@@ -294,7 +295,7 @@ router.get("/admin/billing-stats", async (req, res): Promise<void> => {
     res.status(403).json({ error: "Forbidden" }); return;
   }
 
-  const [totals] = await db.execute(
+  const billingTotalsResult = await db.execute(
     sql`SELECT COUNT(*) as total_purchases,
                COUNT(*) FILTER (WHERE status = 'completed') as completed_count,
                COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
@@ -302,6 +303,7 @@ router.get("/admin/billing-stats", async (req, res): Promise<void> => {
                COALESCE(SUM(tokens_amount) FILTER (WHERE status = 'completed'), 0) as total_tokens_sold
         FROM token_purchases`
   );
+  const totals = billingTotalsResult.rows[0];
 
   const recent = await db.execute(
     sql`SELECT tp.*, u.email, u.first_name, u.last_name
@@ -341,7 +343,7 @@ router.get("/admin/billing-stats", async (req, res): Promise<void> => {
   );
 
   res.json({
-    totals: totals.rows[0],
+    totals,
     recent: recent.rows,
     byPackage: byPackage.rows,
     daily: daily.rows,

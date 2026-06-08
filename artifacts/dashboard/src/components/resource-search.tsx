@@ -47,11 +47,11 @@ export default function ResourceSearch({ placeholder = "Search all resources…"
     setLoadingResources(true);
     try {
       const [books, notes, green, syllabus, library] = await Promise.allSettled([
-        fetch("/api/external-books").then(r => r.json()),
-        fetch("/api/external-notes").then(r => r.json()),
-        fetch("/api/external-green-books").then(r => r.json()),
-        fetch("/api/external-syllabus").then(r => r.json()),
-        fetch("/api/resources").then(r => r.json()),
+        fetch("/api/v1/documents").then(r => r.json()),
+        fetch("/api/v1/documents?type=notes").then(r => r.json()),
+        fetch("/api/v1/documents?type=green_book").then(r => r.json()),
+        fetch("/api/v1/documents?type=past_paper").then(r => r.json()),
+        fetch("/api/v1/documents").then(r => r.json()),
       ]);
 
       const all: ResourceItem[] = [];
@@ -80,7 +80,7 @@ export default function ResourceSearch({ placeholder = "Search all resources…"
       if (library.status === "fulfilled") {
         const items = Array.isArray(library.value) ? library.value : (library.value?.resources ?? []);
         items.forEach((r: { title: string; id: number; subject?: string }) => {
-          if (r.title && r.id) all.push({ title: r.title, url: `/api/resources/${r.id}/download`, source: "library", subject: r.subject });
+          if (r.title && r.id) all.push({ title: r.title, url: `/api/v1/documents/${r.id}/download`, source: "library", subject: r.subject });
         });
       }
       setAllResources(all);
@@ -115,7 +115,7 @@ export default function ResourceSearch({ placeholder = "Search all resources…"
 The student is looking for: "${query}"
 
 List the exact resource titles (from the list) most relevant to this query, one per line. Return only titles, no extra text. Return at most 15 titles.`;
-      const resp = await fetch("/api/free-ai/discuss", {
+      const resp = await fetch("/api/discuss", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: [{ role: "user", content: prompt }], model: "qwen2.5:7b" }),

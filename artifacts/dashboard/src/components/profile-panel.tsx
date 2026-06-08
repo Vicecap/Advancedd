@@ -116,7 +116,7 @@ function EntryDetail({
 
     try {
       if (isFree) {
-        const res = await fetch("/api/free-ai/discuss", {
+        const res = await fetch("/api/discuss", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -455,6 +455,7 @@ export default function ProfilePanel({ open, onClose, user, tokens, onLogout, on
       sessionStorage.setItem("rating_prompted", "1");
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [history.length, existingRating, ratingPromptShown]);
 
   const loadRating = useCallback(async () => {
@@ -694,7 +695,7 @@ export default function ProfilePanel({ open, onClose, user, tokens, onLogout, on
                           </div>
                           {/* Progress to next 100K */}
                           {(() => {
-                            const chunk = 100_000;
+                            const chunk = 20_000;
                             const progress = (xpInfo.xp % chunk) / chunk;
                             const chunksAvailable = Math.floor(xpInfo.xp / chunk);
                             return (

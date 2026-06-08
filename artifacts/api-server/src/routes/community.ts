@@ -3,6 +3,7 @@ import { db, communityPostsTable, communityCommentsTable, communityLikesTable, u
 import { eq, and, desc, asc, ilike, or, sql, count, inArray } from "drizzle-orm";
 
 const router = Router();
+function paramOne(value: string | string[] | undefined): string { return Array.isArray(value) ? value[0] : (value ?? ""); }
 
 function requireAuth(req: Request, res: Response): boolean {
   if (!req.isAuthenticated() || !req.user?.id) {
@@ -50,7 +51,7 @@ router.get("/community/posts", async (req: Request, res: Response): Promise<void
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const offset = (pageNum - 1) * PAGE_SIZE;
 
-    let query = db.select().from(communityPostsTable);
+    let query: any = db.select().from(communityPostsTable);
 
     const conditions = [];
     if (category && category !== "all" && VALID_CATEGORIES.includes(category)) {
@@ -74,7 +75,7 @@ router.get("/community/posts", async (req: Request, res: Response): Promise<void
       query = query.orderBy(desc(communityPostsTable.isPinned), desc(communityPostsTable.createdAt)) as typeof query;
     }
 
-    const posts = await (query as unknown as ReturnType<typeof db.select>).limit(PAGE_SIZE).offset(offset);
+    const posts = await query.limit(PAGE_SIZE).offset(offset);
     const enriched = await enrichPosts(posts as typeof communityPostsTable.$inferSelect[]);
     const [{ total }] = await db.select({ total: count() }).from(communityPostsTable);
 
@@ -115,7 +116,7 @@ router.post("/community/posts", async (req: Request, res: Response): Promise<voi
 /* ── GET /community/posts/:id ────────────────────────────────────────────── */
 router.get("/community/posts/:id", async (req: Request, res: Response): Promise<void> => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const [post] = await db.select().from(communityPostsTable).where(eq(communityPostsTable.id, id));
     if (!post) { res.status(404).json({ error: "Post not found" }); return; }
 
@@ -143,7 +144,7 @@ router.get("/community/posts/:id", async (req: Request, res: Response): Promise<
 router.delete("/community/posts/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const [post] = await db.select().from(communityPostsTable).where(eq(communityPostsTable.id, id));
     if (!post) { res.status(404).json({ error: "Post not found" }); return; }
     if (post.userId !== req.user!.id && !isAdmin(req)) { res.status(403).json({ error: "Not authorized" }); return; }
@@ -158,7 +159,7 @@ router.delete("/community/posts/:id", async (req: Request, res: Response): Promi
 router.post("/community/posts/:id/like", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const userId = req.user!.id;
 
     const [existing] = await db.select().from(communityLikesTable)
@@ -182,7 +183,7 @@ router.post("/community/posts/:id/like", async (req: Request, res: Response): Pr
 router.post("/community/posts/:id/solve", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const [post] = await db.select().from(communityPostsTable).where(eq(communityPostsTable.id, id));
     if (!post) { res.status(404).json({ error: "Post not found" }); return; }
     if (post.userId !== req.user!.id && !isAdmin(req)) { res.status(403).json({ error: "Not authorized" }); return; }
@@ -199,7 +200,7 @@ router.patch("/community/posts/:id/pin", async (req: Request, res: Response): Pr
   if (!requireAuth(req, res)) return;
   if (!isAdmin(req)) { res.status(403).json({ error: "Admin only" }); return; }
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const [post] = await db.select().from(communityPostsTable).where(eq(communityPostsTable.id, id));
     if (!post) { res.status(404).json({ error: "Post not found" }); return; }
     const newVal = !post.isPinned;
@@ -215,7 +216,7 @@ router.patch("/community/posts/:id/lock", async (req: Request, res: Response): P
   if (!requireAuth(req, res)) return;
   if (!isAdmin(req)) { res.status(403).json({ error: "Admin only" }); return; }
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const [post] = await db.select().from(communityPostsTable).where(eq(communityPostsTable.id, id));
     if (!post) { res.status(404).json({ error: "Post not found" }); return; }
     const newVal = !post.isLocked;
@@ -230,7 +231,7 @@ router.patch("/community/posts/:id/lock", async (req: Request, res: Response): P
 router.post("/community/posts/:id/comments", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
   try {
-    const postId = parseInt(req.params.id, 10);
+    const postId = parseInt(paramOne(req.params.id), 10);
     const { content } = req.body as { content: string };
     if (!content?.trim()) { res.status(400).json({ error: "Comment cannot be empty." }); return; }
     if (content.trim().length > 5000) { res.status(400).json({ error: "Comment must be 5,000 characters or less." }); return; }
@@ -259,7 +260,7 @@ router.post("/community/posts/:id/comments", async (req: Request, res: Response)
 router.delete("/community/comments/:id", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const [comment] = await db.select().from(communityCommentsTable).where(eq(communityCommentsTable.id, id));
     if (!comment) { res.status(404).json({ error: "Comment not found" }); return; }
     if (comment.userId !== req.user!.id && !isAdmin(req)) { res.status(403).json({ error: "Not authorized" }); return; }
@@ -279,7 +280,7 @@ router.delete("/community/comments/:id", async (req: Request, res: Response): Pr
 router.post("/community/comments/:id/like", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const userId = req.user!.id;
 
     const [existing] = await db.select().from(communityLikesTable)
@@ -303,7 +304,7 @@ router.post("/community/comments/:id/like", async (req: Request, res: Response):
 router.post("/community/comments/:id/answer", async (req: Request, res: Response): Promise<void> => {
   if (!requireAuth(req, res)) return;
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(paramOne(req.params.id), 10);
     const [comment] = await db.select().from(communityCommentsTable).where(eq(communityCommentsTable.id, id));
     if (!comment) { res.status(404).json({ error: "Comment not found" }); return; }
 

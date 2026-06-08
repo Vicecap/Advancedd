@@ -81,10 +81,10 @@ export function setupQueues(): void {
       const { openrouter } = await import("@workspace/integrations-openrouter-ai");
       const completion = await openrouter.chat.completions.create({
         model,
-        messages: [
+        messages: ([
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
-        ],
+        ] as any),
         max_tokens: 8192,
       });
 
@@ -118,7 +118,7 @@ export function setupQueues(): void {
 
       const completion = await openrouter.chat.completions.create({
         model: "google/gemini-2.0-flash-001",
-        messages: [
+        messages: ([
           {
             role: "user",
             content: [
@@ -129,7 +129,7 @@ export function setupQueues(): void {
               },
             ] as Parameters<typeof openrouter.chat.completions.create>[0]["messages"][0]["content"],
           },
-        ],
+        ] as any),
         max_tokens: 1024,
       });
 

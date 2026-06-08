@@ -12,7 +12,7 @@ interface GuestSignUpPopupProps {
 const MESSAGES = {
   tokens: {
     title: "Weekly guest tokens used up",
-    body: "You've reached the 25K weekly guest token limit. Sign up for free to get 600K tokens per week and save your history.",
+    body: "You've reached the 20K weekly guest token limit. Sign up for free to get 60K tokens per week and save your history.",
   },
   pdf: {
     title: "Sign in to read PDFs",

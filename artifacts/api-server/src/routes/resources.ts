@@ -6,6 +6,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage"
 import { Readable } from "stream";
 
 const router: IRouter = Router();
+function paramOne(value: string | string[] | undefined): string { return Array.isArray(value) ? value[0] : (value ?? ""); }
 const storage = new ObjectStorageService();
 
 const RequestUploadUrlBody = z.object({
@@ -116,7 +117,7 @@ router.get("/resources", async (req: Request, res: Response): Promise<void> => {
 });
 
 router.get("/resources/:id/download", async (req: Request, res: Response): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(paramOne(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid resource ID" });
     return;
@@ -193,7 +194,7 @@ router.delete("/resources/:id", async (req: Request, res: Response): Promise<voi
     return;
   }
 
-  const id = parseInt(req.params.id, 10);
+  const id = parseInt(paramOne(req.params.id), 10);
   if (isNaN(id)) {
     res.status(400).json({ error: "Invalid resource ID" });
     return;

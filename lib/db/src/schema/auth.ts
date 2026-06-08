@@ -23,12 +23,12 @@ export const usersTable = pgTable("users", {
   isAdmin: boolean("is_admin").notNull().default(false),
   isPremium: boolean("is_premium").notNull().default(false),
   emailVerified: boolean("email_verified").notNull().default(false),
-  verificationCode: varchar("verification_code"),
-  verificationCodeExpiry: timestamp("verification_code_expiry", { withTimezone: true }),
+  emailVerifyHash: varchar("verification_code"),
+  emailVerifyHashExpiry: timestamp("verification_code_expiry", { withTimezone: true }),
   verificationResendCount: integer("verification_resend_count").notNull().default(0),
   verificationResendLastAt: timestamp("verification_resend_last_at", { withTimezone: true }),
-  resetCode: varchar("reset_code"),
-  resetCodeExpiry: timestamp("reset_code_expiry", { withTimezone: true }),
+  passwordResetHash: varchar("reset_code"),
+  passwordResetHashExpiry: timestamp("reset_code_expiry", { withTimezone: true }),
   referralCode: varchar("referral_code").unique(),
   referredBy: varchar("referred_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -37,7 +37,7 @@ export const usersTable = pgTable("users", {
 
 export const tokenBalancesTable = pgTable("token_balances", {
   userId: varchar("user_id").primaryKey().references(() => usersTable.id, { onDelete: "cascade" }),
-  balance: bigint("balance", { mode: "number" }).notNull().default(600_000),
+  balance: bigint("balance", { mode: "number" }).notNull().default(60_000),
   totalUsed: bigint("total_used", { mode: "number" }).notNull().default(0),
   lastRefillAt: timestamp("last_refill_at", { withTimezone: true }).notNull().defaultNow(),
   xp: bigint("xp", { mode: "number" }).notNull().default(0),
@@ -55,7 +55,7 @@ export const userStreaksTable = pgTable("user_streaks", {
 
 export const anonymousTokensTable = pgTable("anonymous_tokens", {
   deviceId: varchar("device_id").primaryKey(),
-  balance: bigint("balance", { mode: "number" }).notNull().default(100_000),
+  balance: bigint("balance", { mode: "number" }).notNull().default(20_000),
   lastRefillAt: timestamp("last_refill_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

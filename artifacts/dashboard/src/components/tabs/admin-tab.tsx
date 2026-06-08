@@ -151,7 +151,7 @@ function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const [firstName, setFirstName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ email: string; tempPassword: string } | null>(null);
+  const [result, setResult] = useState<{ email: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
@@ -164,16 +164,16 @@ function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreat
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), firstName: firstName.trim() || undefined }),
       });
-      const data = await res.json() as { ok?: boolean; error?: string; email?: string; tempPassword?: string };
+      const data = await res.json() as { ok?: boolean; error?: string; email?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed");
-      setResult({ email: data.email!, tempPassword: data.tempPassword! });
+      setResult({ email: data.email! });
     } catch (err) { setError((err as Error).message); }
     setLoading(false);
   };
 
   const copyCredentials = () => {
     if (!result) return;
-    navigator.clipboard.writeText(`Email: ${result.email}\nPassword: ${result.tempPassword}`);
+    navigator.clipboard.writeText(`Email: ${result.email}`);
     setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
@@ -201,7 +201,6 @@ function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <div className="rounded-xl p-3 space-y-1.5 font-mono text-sm"
               style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
               <p className="text-white"><span className="text-muted-foreground">Email:</span> {result.email}</p>
-              <p className="text-red-300"><span className="text-muted-foreground">Password:</span> {result.tempPassword}</p>
             </div>
             <div className="flex gap-2">
               <button onClick={copyCredentials}
@@ -912,12 +911,106 @@ function AnalyticsPanel() {
   );
 }
 
+function AdminEmailPanel({ users }: { users: AdminUser[] }) {
+  const verifiedUsers = users.filter(u => u.email && u.emailVerified);
+  const [mode, setMode] = useState<"all" | "selected">("selected");
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState<{ attempted: number; sent: number; failed: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const visibleUsers = verifiedUsers.filter(u => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    return [u.email, u.firstName, u.lastName].filter(Boolean).join(" ").toLowerCase().includes(q);
+  });
+  const recipientCount = mode === "all" ? verifiedUsers.length : selected.length;
+
+  const sendEmail = async () => {
+    setError(null);
+    if (!subject.trim() || !body.trim()) { setError("Subject and body are required."); return; }
+    if (mode === "selected" && selected.length === 0) { setError("Select at least one verified user."); return; }
+    setSending(true);
+    try {
+      const res = await fetch(api("/admin/email-users"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode, userIds: selected, subject, body }),
+      });
+      const data = await res.json() as { attempted?: number; sent?: number; failed?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Failed to send email");
+      setResult({ attempted: data.attempted ?? 0, sent: data.sent ?? 0, failed: data.failed ?? 0 });
+      setConfirming(false);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="flex items-center gap-2 mb-3"><Mail className="w-4 h-4 text-blue-300" /><h3 className="font-semibold text-white">Email signed-up users</h3></div>
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <button onClick={() => setMode("selected")} className={cn("px-3 py-2 rounded-lg text-sm border", mode === "selected" ? "text-white border-blue-500/50 bg-blue-500/15" : "text-muted-foreground border-white/10")}>Selected users</button>
+              <button onClick={() => setMode("all")} className={cn("px-3 py-2 rounded-lg text-sm border", mode === "all" ? "text-white border-blue-500/50 bg-blue-500/15" : "text-muted-foreground border-white/10")}>All verified users</button>
+            </div>
+            {mode === "selected" && (
+              <div className="space-y-2">
+                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search verified users..." className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white outline-none" />
+                <div className="max-h-64 overflow-y-auto rounded-xl border border-white/10 divide-y divide-white/10">
+                  {visibleUsers.map(u => (
+                    <label key={u.id} className="flex items-center gap-3 p-2 text-sm cursor-pointer hover:bg-white/5">
+                      <input type="checkbox" checked={selected.includes(u.id)} onChange={e => setSelected(prev => e.target.checked ? [...prev, u.id] : prev.filter(id => id !== u.id))} />
+                      <span className="text-white truncate">{u.email}</span>
+                      <span className="text-muted-foreground text-xs truncate">{[u.firstName, u.lastName].filter(Boolean).join(" ")}</span>
+                    </label>
+                  ))}
+                  {visibleUsers.length === 0 && <p className="p-3 text-sm text-muted-foreground">No verified users found.</p>}
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">Recipients: {recipientCount}. Guest users and unverified accounts are excluded.</p>
+          </div>
+          <div className="space-y-3">
+            <input value={subject} onChange={e => setSubject(e.target.value)} maxLength={160} placeholder="Subject" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white outline-none" />
+            <textarea value={body} onChange={e => setBody(e.target.value)} maxLength={10000} rows={8} placeholder="Email body" className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-sm text-white outline-none resize-y" />
+            {error && <p className="text-sm text-red-300">{error}</p>}
+            {result && <p className="text-sm text-emerald-300">Attempted {result.attempted}, sent {result.sent}, failed {result.failed}.</p>}
+            <button onClick={() => setConfirming(true)} disabled={!subject.trim() || !body.trim() || recipientCount === 0} className="w-full px-4 py-2 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-200 font-semibold disabled:opacity-50">Preview and confirm</button>
+          </div>
+        </div>
+      </div>
+
+      {confirming && (
+        <div className="p-4 rounded-2xl" style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.3)" }}>
+          <p className="text-sm text-blue-200 mb-2">Confirm sending to {recipientCount} verified user(s):</p>
+          <p className="font-semibold text-white mb-2">{subject}</p>
+          <pre className="whitespace-pre-wrap text-sm text-slate-200 max-h-56 overflow-y-auto bg-black/20 p-3 rounded-lg">{body}</pre>
+          <div className="flex gap-2 mt-3">
+            <button onClick={sendEmail} disabled={sending} className="px-4 py-2 rounded-lg bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 font-semibold">{sending ? "Sending..." : "Send email"}</button>
+            <button onClick={() => setConfirming(false)} className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-muted-foreground">Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Tab type ───────────────────────────────────────────────────────────────
 
 type AdminTabId =
   | "overview" | "analytics" | "ratings" | "users" | "admins"
   | "errors" | "activity" | "billing" | "manual_billing"
-  | "security" | "community" | "premium" | "support";
+  | "security" | "community" | "premium" | "support" | "email";
 
 // ══════════════════════════════════════════════════════════════════════════
 // Main AdminTab
@@ -1179,7 +1272,7 @@ export default function AdminTab() {
 
   const [resettingTokens, setResettingTokens] = useState<string | null>(null);
   const handleResetTokens = async (u: AdminUser) => {
-    if (!confirm(`Reset ${u.firstName ?? u.email}'s token balance to 600K?`)) return;
+    if (!confirm(`Reset ${u.firstName ?? u.email}'s token balance to 60K?`)) return;
     setResettingTokens(u.id);
     const res = await fetch(api("/admin/users/reset-tokens"), {
       method: "POST", credentials: "include",
@@ -1317,6 +1410,7 @@ export default function AdminTab() {
     { id: "analytics",      label: "Analytics",                                       icon: LineChart      },
     { id: "ratings",        label: `Ratings (${ratings.length})`,                     icon: Star           },
     { id: "users",          label: `Users (${users.length})`,                         icon: Users          },
+    { id: "email",          label: "Email Users",                                    icon: Mail           },
     { id: "admins",         label: `Admins (${users.filter(u => u.isAdmin).length})`, icon: ShieldAlert    },
     { id: "community",      label: `Community (${communityPosts.length || 0})`,       icon: MessageSquare  },
     { id: "errors",         label: errorLogsTotal > 0 ? `Errors (${errorLogsTotal})` : "Errors", icon: AlertTriangle },
@@ -1448,6 +1542,10 @@ export default function AdminTab() {
             ))}
           </div>
         )}
+
+
+        {/* ── Email Users ── */}
+        {tab === "email" && <AdminEmailPanel users={users} />}
 
         {/* ── Users ── */}
         {tab === "users" && (

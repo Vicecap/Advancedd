@@ -200,13 +200,13 @@ export default function NotesTab() {
   }
 
   useEffect(() => {
-    fetch("/api/external-notes")
+    fetch("/api/v1/documents?type=notes")
       .then((r) => r.json())
       .then((res) => setNotes(parseResponse(res)))
       .catch(() => setErrorNotes("Could not load notes"))
       .finally(() => setLoadingNotes(false));
 
-    fetch("/api/external-green-books")
+    fetch("/api/v1/documents?type=green_book")
       .then((r) => r.json())
       .then((res) => setGreenBooks(parseResponse(res)))
       .catch(() => setErrorGreen("Could not load green books"))

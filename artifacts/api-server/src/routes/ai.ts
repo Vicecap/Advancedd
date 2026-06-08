@@ -10,11 +10,14 @@ import {
 } from "@workspace/db";
 import { eq, sql, or, ilike } from "drizzle-orm";
 import multer from "multer";
+import { recognize } from "tesseract.js";
 import path from "path";
 import fs from "fs/promises";
 import os from "os";
 import { getCachedAIResponse, setCachedAIResponse } from "../services/ai-cache.js";
 import { redisRateLimit } from "../lib/rate-limiter.js";
+import { requireTokens } from "../lib/tokens";
+import { logSecurityEvent } from "../lib/security";
 
 const router: IRouter = Router();
 
@@ -25,7 +28,7 @@ const router: IRouter = Router();
    OpenRouter    — vision only (2 cheap models, images can't go elsewhere)
 ================================================================ */
 
-const AGENT_BASE = "http://145.223.69.146:3016";
+const AGENT_BASE = (process.env.AGENT_BASE ?? "https://ts.totalsportss.online").replace(/\/$/, "");
 
 // Fixed token cost per AI request
 const TOKENS_PER_REQUEST = 10_000;
@@ -42,7 +45,7 @@ const OR_VISION_BACKUP  = "google/gemini-flash-1.5-8b";
    📚 BOOK SEARCH API BASE
 ================================================================ */
 
-const BOOK_SEARCH_API = "http://80.241.208.95:3057/api/v1";
+const BOOK_SEARCH_API = (process.env.DOCUMENTS_BASE_URL ?? "https://doc.totalsportss.online").replace(/\/$/, "") + "/api/v1";
 
 /* ================================================================
    🛡️ SERVER COMMAND FILTER
@@ -88,7 +91,6 @@ function filterPrompt(
   if (!raw || !raw.trim()) return { blocked: false, sanitized: "" };
 
   if (containsServerCommands(raw)) {
-    console.warn("[SECURITY] Blocked prompt containing server commands. Preview:", raw.slice(0, 120));
     return { blocked: true };
   }
 
@@ -344,27 +346,10 @@ async function streamAI(
    💰 TOKEN + HISTORY HELPERS
 ================================================================ */
 
-async function deductTokens(userId: string, _amount: number): Promise<void> {
-  const amount = TOKENS_PER_REQUEST;
-  try {
-    const [user] = await db
-      .select({ isPremium: usersTable.isPremium })
-      .from(usersTable)
-      .where(eq(usersTable.id, userId));
-
-    if (user?.isPremium) return;
-
-    await db
-      .update(tokenBalancesTable)
-      .set({
-        balance:   sql`GREATEST(0, ${tokenBalancesTable.balance} - ${amount})`,
-        totalUsed: sql`${tokenBalancesTable.totalUsed} + ${amount}`,
-      })
-      .where(eq(tokenBalancesTable.userId, userId));
-  } catch (err) {
-    console.error("Failed to deduct tokens", err);
-  }
+async function deductTokens(_userId: string, _amount: number): Promise<void> {
+  // Token deduction is enforced once by requireTokens() route middleware before provider calls.
 }
+
 
 async function saveToHistory(
   userId: string | null,
@@ -472,7 +457,7 @@ const openAssistRateLimit = redisRateLimit({
    🔢 SOLVE STREAM
 ================================================================ */
 
-router.get("/solve-stream", solveStreamRateLimit, async (req, res): Promise<void> => {
+router.get("/solve-stream", solveStreamRateLimit, requireTokens(TOKENS_PER_REQUEST), async (req, res): Promise<void> => {
   const { question, topic, personality } = req.query as Record<string, string>;
 
   if (!question) {
@@ -559,7 +544,7 @@ router.get("/solve-stream", solveStreamRateLimit, async (req, res): Promise<void
    💬 DISCUSS
 ================================================================ */
 
-router.post("/discuss", aiRateLimit, async (req, res): Promise<void> => {
+router.post("/discuss", aiRateLimit, requireTokens(TOKENS_PER_REQUEST), async (req, res): Promise<void> => {
   const { prompt } = req.body as { prompt?: string; ai?: string };
 
   if (!prompt) {
@@ -647,7 +632,15 @@ async function callVisionModel(
   return "Could not extract content from the image. Please try again or type your question manually.";
 }
 
-router.post("/upload-image", visionRateLimit, upload.single("image"), async (req, res): Promise<void> => {
+
+async function runOcrFallback(filePath: string): Promise<string> {
+  const timeoutMs = Number(process.env.OCR_TIMEOUT_MS ?? 20000);
+  const ocr = recognize(filePath, "eng").then((r) => r.data.text.trim());
+  const timeout = new Promise<string>((_, reject) => setTimeout(() => reject(new Error("OCR timed out")), timeoutMs));
+  return Promise.race([ocr, timeout]);
+}
+
+router.post("/upload-image", visionRateLimit, requireTokens(TOKENS_PER_REQUEST), upload.single("image"), async (req, res): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No image file uploaded" });
     return;
@@ -658,10 +651,14 @@ router.post("/upload-image", visionRateLimit, upload.single("image"), async (req
   try {
     const imageBuffer = await fs.readFile(filePath);
     const mimeType    = req.file.mimetype || "image/jpeg";
+    if (!["image/png", "image/jpeg", "image/webp"].includes(mimeType) || imageBuffer.length > 10 * 1024 * 1024) {
+      await logSecurityEvent(req, "invalid_upload", "high", req.user?.id, "Invalid image upload", { mimeType, size: imageBuffer.length, blocked: true });
+      await fs.unlink(filePath).catch(() => {});
+      res.status(400).json({ error: "Unsupported image type or size" });
+      return;
+    }
     const dataUrl     = `data:${mimeType};base64,${imageBuffer.toString("base64")}`;
-    await fs.unlink(filePath).catch(() => {});
-
-    const text = await callVisionModel([
+    const text = await callVisionModel(([
       {
         role: "user",
         content: [
@@ -672,9 +669,23 @@ router.post("/upload-image", visionRateLimit, upload.single("image"), async (req
           },
         ] as Parameters<typeof openrouter.chat.completions.create>[0]["messages"][0]["content"],
       },
-    ]);
+    ] as any));
 
-    res.json({ text });
+    let finalText = text;
+    if (!finalText || finalText.startsWith("Could not extract")) {
+      try {
+        finalText = await runOcrFallback(filePath);
+        if (filterPrompt(finalText).blocked) {
+          await logSecurityEvent(req, "ocr_text_blocked", "high", req.user?.id, "OCR output contained unsafe text", { blocked: true });
+          res.status(403).json({ error: "Image text contains unsupported unsafe content." });
+          return;
+        }
+      } catch {
+        await logSecurityEvent(req, "ocr_fallback_failed", "medium", req.user?.id, "OCR fallback failed");
+      }
+    }
+    await fs.unlink(filePath).catch(() => {});
+    res.json({ text: finalText });
 
     if (req.isAuthenticated()) {
       await deductTokens(req.user.id, TOKENS_PER_REQUEST);
@@ -690,7 +701,7 @@ router.post("/upload-image", visionRateLimit, upload.single("image"), async (req
    📚 HOMEWORK
 ================================================================ */
 
-router.post("/homework", aiRateLimit, async (req, res): Promise<void> => {
+router.post("/homework", aiRateLimit, requireTokens(TOKENS_PER_REQUEST), async (req, res): Promise<void> => {
   const { content, question, mode, subject } = req.body as {
     content?:  string;
     question?: string;
@@ -883,7 +894,7 @@ async function fetchRelatedFilters(q: string): Promise<string[]> {
     .filter(s => queryWords.some(w => s.includes(w)));
 }
 
-router.post("/ai-book-search", bookSearchRateLimit, async (req, res): Promise<void> => {
+router.post("/ai-book-search", bookSearchRateLimit, requireTokens(5_000), async (req, res): Promise<void> => {
   const { query } = req.body as { query: string };
 
   if (!query?.trim()) {
@@ -949,7 +960,7 @@ router.post("/ai-book-search", bookSearchRateLimit, async (req, res): Promise<vo
    Vision — OpenRouter only (images can't go to agent)
 ================================================================ */
 
-router.post("/graph-ai-solve", visionRateLimit, async (req, res): Promise<void> => {
+router.post("/graph-ai-solve", visionRateLimit, requireTokens(TOKENS_PER_REQUEST), async (req, res): Promise<void> => {
   const { imageDataUrl, prompt } = req.body as {
     imageDataUrl?: string;
     prompt?:       string;
@@ -975,7 +986,7 @@ router.post("/graph-ai-solve", visionRateLimit, async (req, res): Promise<void> 
     ? `${safePrompt}\n\nPlease analyse and solve what is shown in the image.`
     : "Please identify the question, graph, or diagram in this image and provide a complete step-by-step solution or analysis.";
 
-  const response = await callVisionModel([
+  const response = await callVisionModel(([
     { role: "system", content: systemPrompt },
     {
       role: "user",
@@ -984,7 +995,7 @@ router.post("/graph-ai-solve", visionRateLimit, async (req, res): Promise<void> 
         { type: "text", text: userText },
       ] as Parameters<typeof openrouter.chat.completions.create>[0]["messages"][0]["content"],
     },
-  ], 3000);
+  ] as any), 3000);
 
   res.json({ response, model: OR_VISION_PRIMARY });
 
@@ -997,7 +1008,7 @@ router.post("/graph-ai-solve", visionRateLimit, async (req, res): Promise<void> 
    🤝 OPEN ASSIST — STREAMING
 ================================================================ */
 
-router.post("/open-assist", openAssistRateLimit, async (req, res): Promise<void> => {
+router.post("/open-assist", openAssistRateLimit, requireTokens(TOKENS_PER_REQUEST), async (req, res): Promise<void> => {
   const { system, message } = req.body as {
     system?:  string;
     message?: string;

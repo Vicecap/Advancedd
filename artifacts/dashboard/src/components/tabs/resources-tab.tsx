@@ -454,7 +454,7 @@ function PdfViewer({
     setLoadError(null);
     setPdfUrl(null);
     setCurrentPage(1);
-    fetch(`/api/resources/${resource.id}/download`, { credentials: "include" })
+    fetch(`/api/v1/documents/${resource.id}/download`, { credentials: "include" })
       .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.blob(); })
       .then(blob => {
         const url = URL.createObjectURL(blob);
@@ -529,7 +529,7 @@ function PdfViewer({
       : prompt;
     try {
       const isFree = isFreeResourceModel(selectedModel);
-      const endpoint = isFree ? "/api/free-ai/discuss" : "/api/discuss";
+      const endpoint = isFree ? "/api/discuss" : "/api/discuss";
       const body = isFree
         ? { messages: [{ role: "user", content: fullPrompt }], model: selectedModel }
         : { prompt: fullPrompt, ai: selectedModel };
@@ -994,7 +994,7 @@ export default function ResourcesTab() {
 
   const buildUrl = useCallback((offset: number) => {
     const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) });
-    return `/api/resources?${params}`;
+    return `/api/v1/documents?${params}`;
   }, []);
 
   const fetchResources = useCallback(() => {

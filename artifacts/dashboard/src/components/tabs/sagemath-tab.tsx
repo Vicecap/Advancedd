@@ -134,7 +134,7 @@ function useAiStream() {
     setText(""); setLoading(true); setError(null);
 
     try {
-      const endpoint = isFreeModel(model) ? api("/free-ai/ai-stream") : api("/open-assist");
+      const endpoint = isFreeModel(model) ? api("/open-assist") : api("/open-assist");
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

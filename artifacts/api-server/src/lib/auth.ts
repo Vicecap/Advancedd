@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { type Request, type Response } from "express";
 import { db, sessionsTable, usersTable, tokenBalancesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export const SESSION_COOKIE = "sid";
 export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
@@ -80,12 +80,12 @@ export async function provisionUser(user: {
   authProvider: string;
 }): Promise<AuthUser> {
 
-  const email = user.email?.toLowerCase();
+  const email = user.email?.toLowerCase() ?? null;
 
   const existing = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.email, email))
+    .where(email ? eq(usersTable.email, email) : sql`false`)
     .limit(1);
 
   if (existing.length) {

@@ -28,7 +28,6 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
 
   // Verify screen
   const [verifyEmail, setVerifyEmail] = useState<string | null>(null);
-  const [devCode, setDevCode] = useState<string | null>(null);
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [resending, setResending] = useState(false);
@@ -38,9 +37,8 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
 
   // Forgot/Reset password screen
   const [resetEmail, setResetEmail] = useState("");
-  const [resetDevCode, setResetDevCode] = useState<string | null>(null);
-  const [resetCode, setResetCode] = useState(["", "", "", "", "", ""]);
-  const resetCodeRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [passwordResetDigits, setPasswordResetDigits] = useState(["", "", "", "", "", ""]);
+  const passwordResetRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [newPassword, setNewPassword] = useState("");
   const [showNewPw, setShowNewPw] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -48,9 +46,9 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
 
   const reset = () => {
     setEmail(""); setPassword(""); setFirstName(""); setError(null); setShowPw(false);
-    setVerifyEmail(null); setDevCode(null); setCode(["","","","","",""]);
+    setVerifyEmail(null); setCode(["","","","","",""]);
     setResendCooldown(0); setResendAttemptsLeft(MAX_RESENDS); setMaxResendReached(false);
-    setResetEmail(""); setResetDevCode(null); setResetCode(["","","","","",""]);
+    setResetEmail(""); setPasswordResetDigits(["","","","","",""]);
     setNewPassword(""); setShowNewPw(false); setResetSent(false); setResetSuccess(false);
     setScreen("auth");
   };
@@ -63,6 +61,7 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
       const t = setTimeout(() => setResendCooldown(v => v - 1), 1000);
       return () => clearTimeout(t);
     }
+    return undefined;
   }, [resendCooldown]);
 
   useEffect(() => {
@@ -79,12 +78,11 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
         method: "POST", headers: { "Content-Type": "application/json" },
         credentials: "include", body: JSON.stringify(body),
       });
-      const data = await res.json() as { user?: unknown; error?: string; needsVerification?: boolean; email?: string; devCode?: string };
+      const data = await res.json() as { user?: unknown; error?: string; needsVerification?: boolean; email?: string; developmentCode?: string };
       if (data.needsVerification) {
         setVerifyEmail(data.email ?? email.trim().toLowerCase());
         setResendCooldown(RESEND_COOLDOWN);
         setResendAttemptsLeft(MAX_RESENDS);
-        if (data.devCode) { setDevCode(data.devCode); setCode(data.devCode.split("")); }
         setLoading(false); return;
       }
       if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
@@ -150,7 +148,7 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
         method: "POST", headers: { "Content-Type": "application/json" },
         credentials: "include", body: JSON.stringify({ email: verifyEmail }),
       });
-      const data = await res.json() as { ok?: boolean; error?: string; waitSeconds?: number; attemptsLeft?: number; maxReached?: boolean; devCode?: string };
+      const data = await res.json() as { ok?: boolean; error?: string; waitSeconds?: number; attemptsLeft?: number; maxReached?: boolean; developmentCode?: string };
       if (data.maxReached) {
         setMaxResendReached(true); setError("Maximum resend attempts reached. Please start over.");
       } else if (data.waitSeconds) {
@@ -159,8 +157,7 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
       } else if (res.ok) {
         setResendCooldown(RESEND_COOLDOWN);
         if (typeof data.attemptsLeft === "number") setResendAttemptsLeft(data.attemptsLeft);
-        if (data.devCode) { setDevCode(data.devCode); setCode(data.devCode.split("")); }
-      } else {
+        } else {
         setError(data.error ?? "Failed to resend. Try again.");
       }
     } catch {}
@@ -176,11 +173,10 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: resetEmail.trim() }),
       });
-      const data = await res.json() as { ok?: boolean; error?: string; devCode?: string };
+      const data = await res.json() as { ok?: boolean; error?: string; developmentCode?: string };
       if (!res.ok) throw new Error(data.error ?? "Failed to send reset code.");
       setResetSent(true);
-      if (data.devCode) { setResetDevCode(data.devCode); setResetCode(data.devCode.split("")); }
-    } catch (err) {
+          } catch (err) {
       setError((err as Error).message);
     } finally {
       setLoading(false);
@@ -189,29 +185,29 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
 
   const handleResetCodeChange = (idx: number, val: string) => {
     const ch = val.replace(/\D/g, "").slice(-1);
-    const next = [...resetCode]; next[idx] = ch; setResetCode(next);
-    if (ch && idx < 5) resetCodeRefs.current[idx + 1]?.focus();
-    if (!ch && idx > 0 && val === "") resetCodeRefs.current[idx - 1]?.focus();
+    const next = [...passwordResetDigits]; next[idx] = ch; setPasswordResetDigits(next);
+    if (ch && idx < 5) passwordResetRefs.current[idx + 1]?.focus();
+    if (!ch && idx > 0 && val === "") passwordResetRefs.current[idx - 1]?.focus();
   };
 
   const handleResetCodeKeyDown = (idx: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !resetCode[idx] && idx > 0) resetCodeRefs.current[idx - 1]?.focus();
-    if (e.key === "ArrowLeft" && idx > 0) resetCodeRefs.current[idx - 1]?.focus();
-    if (e.key === "ArrowRight" && idx < 5) resetCodeRefs.current[idx + 1]?.focus();
+    if (e.key === "Backspace" && !passwordResetDigits[idx] && idx > 0) passwordResetRefs.current[idx - 1]?.focus();
+    if (e.key === "ArrowLeft" && idx > 0) passwordResetRefs.current[idx - 1]?.focus();
+    if (e.key === "ArrowRight" && idx < 5) passwordResetRefs.current[idx + 1]?.focus();
   };
 
   const handleResetCodePaste = (e: React.ClipboardEvent) => {
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     if (pasted.length > 0) {
-      const next = [...resetCode];
+      const next = [...passwordResetDigits];
       for (let i = 0; i < 6; i++) next[i] = pasted[i] ?? "";
-      setResetCode(next);
-      resetCodeRefs.current[Math.min(pasted.length, 5)]?.focus();
+      setPasswordResetDigits(next);
+      passwordResetRefs.current[Math.min(pasted.length, 5)]?.focus();
     }
   };
 
   const handleResetPassword = async () => {
-    const fullCode = resetCode.join("");
+    const fullCode = passwordResetDigits.join("");
     if (fullCode.length < 6) { setError("Enter all 6 digits of your reset code."); return; }
     if (newPassword.length < 6) { setError("New password must be at least 6 characters."); return; }
     setLoading(true); setError(null);
@@ -225,8 +221,8 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
       setResetSuccess(true);
     } catch (err) {
       setError((err as Error).message);
-      setResetCode(["","","","","",""]);
-      resetCodeRefs.current[0]?.focus();
+      setPasswordResetDigits(["","","","","",""]);
+      passwordResetRefs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
@@ -269,27 +265,9 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
                     <ShieldCheck className="w-7 h-7 text-indigo-400" />
                   </div>
                   <h2 className="text-xl font-display font-bold text-white">Verify your email</h2>
-                  {devCode ? (
-                    <>
-                      <p className="text-sm text-muted-foreground mt-1">Email is not configured on this server.</p>
-                      <p className="text-xs text-muted-foreground">Your verification code is shown below — it has been pre-filled for you.</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-muted-foreground mt-1">We sent a 6-digit code to</p>
-                      <p className="text-sm font-semibold text-indigo-300 mt-0.5">{verifyEmail}</p>
-                    </>
-                  )}
+                  <p className="text-sm text-muted-foreground mt-1">We sent a 6-digit code to</p>
+                  <p className="text-sm font-semibold text-indigo-300 mt-0.5">{verifyEmail}</p>
                 </div>
-
-                {devCode && (
-                  <div className="mb-4 px-4 py-3 rounded-xl text-center"
-                    style={{ background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.35)" }}>
-                    <p className="text-xs text-orange-300 font-semibold mb-1">Your verification code</p>
-                    <p className="text-3xl font-mono font-bold tracking-widest text-orange-200">{devCode}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">Configure EMAIL_HOST / EMAIL_USER / EMAIL_PASS to send codes by email</p>
-                  </div>
-                )}
 
                 <div className="flex justify-center gap-2 mb-5" onPaste={handleCodePaste}>
                   {code.map((digit, i) => (
@@ -364,17 +342,9 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
                   </form>
                 ) : (
                   <div className="space-y-4">
-                    {resetDevCode && (
-                      <div className="px-4 py-3 rounded-xl text-center"
-                        style={{ background: "rgba(251,146,60,0.1)", border: "1px solid rgba(251,146,60,0.35)" }}>
-                        <p className="text-xs text-orange-300 font-semibold mb-1">Your reset code</p>
-                        <p className="text-3xl font-mono font-bold tracking-widest text-orange-200">{resetDevCode}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">Configure email settings to send codes by email</p>
-                      </div>
-                    )}
-                    <div className="flex justify-center gap-2" onPaste={handleResetCodePaste}>
-                      {resetCode.map((digit, i) => (
-                        <input key={i} ref={el => { resetCodeRefs.current[i] = el; }}
+                                        <div className="flex justify-center gap-2" onPaste={handleResetCodePaste}>
+                      {passwordResetDigits.map((digit, i) => (
+                        <input key={i} ref={el => { passwordResetRefs.current[i] = el; }}
                           type="text" inputMode="numeric" maxLength={1} value={digit}
                           onChange={e => handleResetCodeChange(i, e.target.value)}
                           onKeyDown={e => handleResetCodeKeyDown(i, e)}
@@ -432,7 +402,7 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
                   <p className="text-sm text-muted-foreground mt-1">
                     {mode === "login"
                       ? "Sign in to access your progress and tokens"
-                      : "Get 600K tokens/week and save all your sessions"}
+                      : "Get 60K tokens/week and save all your sessions"}
                   </p>
                 </div>
 
@@ -516,7 +486,7 @@ export default function AuthModal({ open, onClose, onSuccess }: AuthModalProps) 
 
                 {mode === "register" && (
                   <p className="text-xs text-muted-foreground text-center mt-4">
-                    By creating an account you get <span className="text-yellow-400">600K tokens/week</span> — use them for AI solving and study resources.
+                    By creating an account you get <span className="text-yellow-400">60K tokens/week</span> — use them for AI solving and study resources.
                   </p>
                 )}
               </>
