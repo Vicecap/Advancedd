@@ -23,11 +23,13 @@ import guestRouter from "./guest";
 import referralRouter from "./referral";
 import supportRouter from "./support";
 import documentsRouter from "./documents";
+import csrfRouter from "./csrf";
 
 const router: IRouter = Router();
 
 
 router.use(authRouter);
+router.use(csrfRouter);
 router.use(healthRouter);
 router.use(mathRouter);
 router.use(historyRouter);

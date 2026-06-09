@@ -29,12 +29,22 @@ app.use(
   }),
 );
 
+function normaliseOrigin(origin: string | undefined): string | null {
+  if (!origin) return null;
+  try { return new URL(origin).origin; }
+  catch { return null; }
+}
+
 const configuredOrigins = (process.env.CORS_ORIGINS ?? "https://ts.totalsportss.online,https://doc.totalsportss.online")
   .split(",")
-  .map((origin) => origin.trim())
+  .map((origin) => normaliseOrigin(origin.trim()) ?? origin.trim())
   .filter(Boolean);
+const appBaseOrigins = [process.env.APP_BASE_URL, process.env.APP_URL]
+  .map(normaliseOrigin)
+  .filter((origin): origin is string => Boolean(origin));
+const requiredOrigins = ["https://tutor.totalsportss.online"];
 const devOrigins = process.env.NODE_ENV === "production" ? [] : ["http://localhost:23183", "http://localhost:5173", "http://127.0.0.1:23183", "http://127.0.0.1:5173"];
-const allowedOrigins = new Set([...configuredOrigins, ...devOrigins]);
+const allowedOrigins = new Set([...configuredOrigins, ...appBaseOrigins, ...requiredOrigins, ...devOrigins]);
 app.use(cors({
   credentials: Boolean(1),
   origin(origin, callback) {

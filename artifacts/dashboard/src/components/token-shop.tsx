@@ -10,6 +10,32 @@ import { useAuth } from "@/hooks/use-auth";
 const BASE_URL = import.meta.env.BASE_URL ?? "/";
 function api(p: string) { return `${BASE_URL}api${p}`; }
 
+async function fetchPaymentCsrfToken(): Promise<string> {
+  let res: Response;
+  try {
+    res = await fetch(api("/csrf-token"), { credentials: "include" });
+  } catch {
+    throw new Error("Unable to start payment securely: failed to fetch the CSRF token. Please refresh and try again.");
+  }
+
+  const data = await res.json().catch(() => ({})) as { csrfToken?: string; error?: string };
+  if (!res.ok || !data.csrfToken) {
+    throw new Error(data.error ?? "Unable to start payment securely: failed to fetch the CSRF token. Please refresh and try again.");
+  }
+
+  return data.csrfToken;
+}
+
+async function createPaymentOrder(path: string, body: unknown): Promise<Response> {
+  const csrfToken = await fetchPaymentCsrfToken();
+  return fetch(api(path), {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify(body),
+  });
+}
+
 /* ── Types ── */
 interface PkgInfo {
   id: string;
@@ -340,12 +366,7 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
       ? { packageId: "custom", customTokens: Number(customTokens) }
       : { packageId: selectedPkg };
 
-    const res = await fetch(api("/billing/create-order"), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const res = await createPaymentOrder("/billing/create-order", body);
 
     const data = await res.json() as {
       orderId?: string; approveUrl?: string | null;
@@ -443,10 +464,7 @@ export default function TokenShop({ open, onClose, onPurchaseComplete }: TokenSh
     if (!selectedPkg || !isAuthenticated) return;
     setError(null); setProcessing(true);
     try {
-      const res = await fetch(api("/billing/dischub/create-order"), {
-        method: "POST", credentials: "include", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId: selectedPkg, senderPhone: dischubPhone, currency: dischubCurrency }),
-      });
+      const res = await createPaymentOrder("/billing/dischub/create-order", { packageId: selectedPkg, senderPhone: dischubPhone, currency: dischubCurrency });
       const data = await res.json() as { paymentUrl?: string; error?: string };
       if (!res.ok || !data.paymentUrl) throw new Error(data.error ?? "DiscHub order failed");
       window.location.href = data.paymentUrl;
