@@ -173,11 +173,16 @@ function generateReference(prefix: string = "PAY"): string {
 /* ── Input sanitiser — strip non-printable chars ─────────────────────────── */
 
 function normaliseDischubPhone(phone: string): string | null {
-  const compact = phone.replace(/[\s-]/g, "");
-  if (/^\+2637\d{8}$/.test(compact)) return compact;
-  if (/^02637\d{8}$/.test(compact)) return `+${compact.slice(1)}`;
-  if (/^07\d{8}$/.test(compact)) return `+263${compact.slice(1)}`;
-  return null;
+  const compact = phone.replace(/[\s().-]/g, "");
+  let digits: string;
+
+  if (/^\+2637\d{8}$/.test(compact)) digits = compact.slice(1);
+  else if (/^2637\d{8}$/.test(compact)) digits = compact;
+  else if (/^02637\d{8}$/.test(compact)) digits = compact.slice(1);
+  else if (/^07\d{8}$/.test(compact)) digits = `263${compact.slice(1)}`;
+  else return null;
+
+  return `+${digits}`;
 }
 
 function dischubBase(): string {

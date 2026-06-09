@@ -11,6 +11,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction):
     cookie = crypto.randomBytes(32).toString("hex");
     res.cookie("csrf_token", cookie, { sameSite: "lax", secure: process.env.NODE_ENV === "production", httpOnly: false, path: "/" });
   }
+  res.locals.csrfToken = cookie;
   if (!UNSAFE.has(req.method) || EXEMPT.some((rx) => rx.test(req.path))) return next();
   if (!req.isAuthenticated?.()) return next();
   const header = req.headers["x-csrf-token"] as string | undefined;
